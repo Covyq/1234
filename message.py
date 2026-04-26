@@ -136,6 +136,33 @@ class SkladView(View):
         row.delete_instance()
         await interaction.message.delete()
 
+# 👇 НОВОЕ
+class SkladExpiredView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+        btn_delete = Button(
+            label="Удалить склад",
+            style=discord.ButtonStyle.red,
+            custom_id="sklad_expired_delete"
+        )
+
+        btn_delete.callback = self.delete
+        self.add_item(btn_delete)
+
+    async def delete(self, interaction):
+        await interaction.response.defer()
+
+        if not has_access(interaction.user):
+            return await interaction.followup.send("❌ Нет доступа", ephemeral=True)
+
+        row = Timer.get_or_none(Timer.message_id == interaction.message.id)
+
+        if row:
+            row.delete_instance()
+
+        await interaction.message.delete()
+
 class TimerView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -219,7 +246,7 @@ async def loop():
             nickname = member.display_name if member else "пользователь"
             mention = member.mention if member else "пользователь"
 
-            # 🔥 SKLAD (FIXED)
+            # SKLAD
             if t.kind == "sklad":
                 lines = t.text.splitlines()
 
@@ -251,7 +278,7 @@ async def loop():
                         f"**Последний, кто обновлял склад — {updater}**\n"
                         f"⏰ {update_time}"
                     ),
-                    view=None
+                    view=SkladExpiredView()
                 )
 
                 t.delete_instance()
@@ -301,6 +328,7 @@ async def on_ready():
     bot.add_view(SkladView())
     bot.add_view(TimerView())
     bot.add_view(MPFView())
+    bot.add_view(SkladExpiredView())
 
     if not loop.is_running():
         loop.start()
@@ -370,7 +398,7 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
     channel_id = get_channel(ctx.guild.id, "sklad")
 
     if not channel_id:
-        return await ctx.respond("❌ канал для склада не настроен", ephemeral=True)
+        return await ctx.respond("❌ канал не настроен", ephemeral=True)
 
     if ctx.channel.id != channel_id:
         return await ctx.respond("❌ не тот канал", ephemeral=True)
