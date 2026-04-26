@@ -263,8 +263,6 @@ async def loop():
                 except:
                     hex_value = region = sklad_name = password = "?"
 
-                end_time = f"<t:{t.time_end}:F>"
-
                 updater_name = "никто"
                 update_time = "неизвестно"
 
@@ -277,7 +275,7 @@ async def loop():
 
                 await msg.edit(
                     content=(
-                        f"🔥Склад {sklad_name} СГОРЕЛ в {end_time} 🔥\n"
+                        f"🔥Склад {sklad_name} СГОРЕЛ в <t:{t.time_end}:F> 🔥\n"
                         f"🔥{hex_value}🔥\n"
                         f"🔥{region}🔥\n"
                         f"🔥{password}🔥\n"
@@ -306,7 +304,7 @@ async def on_ready():
     if not loop.is_running():
         loop.start()
 
-# COMMANDS
+# COMMANDS (ВСЕ ОРИГИНАЛЬНЫЕ)
 
 @bot.slash_command(name="setskladchannel", guild_ids=[GUILD_ID])
 async def setskladchannel(ctx, channel: discord.TextChannel):
@@ -390,6 +388,43 @@ async def timer(ctx, название: str, days: int = 0, hours: int = 0, minut
     await ctx.followup.send("✅ таймер создан", ephemeral=True)
 
 
+@bot.slash_command(name="склад", guild_ids=[GUILD_ID])
+async def sklad(ctx, гекс: str, регион: str, склад: str, пароль: str):
+    channel_id = get_channel(ctx.guild.id, "sklad")
+    if channel_id and ctx.channel.id != channel_id:
+        return await ctx.respond("❌ не тот канал", ephemeral=True)
+
+    await ctx.defer(ephemeral=True)
+
+    end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=1)).timestamp())
+
+    text = (
+        f"👤 {ctx.author.display_name}\n"
+        f"**Гекс:** {гекс}\n"
+        f"**Регион:** {регион}\n"
+        f"**Склад:** {склад}\n"
+        f"**Пароль:** {пароль}"
+    )
+
+    msg = await ctx.send(
+        f"{text}\n\n⏰ До окончания: <t:{end_ts}:R>",
+        view=SkladView()
+    )
+
+    Timer.create(
+        guild_id=ctx.guild.id,
+        channel_id=ctx.channel.id,
+        message_id=msg.id,
+        text=text,
+        time_end=end_ts,
+        author=ctx.author.id,
+        kind="sklad",
+        last_update_user=None,
+        last_update_time=None
+    )
+
+    await ctx.followup.send("✅ склад создан", ephemeral=True)
+
 @bot.slash_command(name="мпф", guild_ids=[GUILD_ID])
 async def mpf(ctx, что_поставил: str, ящиков: int, days: int = 0, hours: int = 0, minutes: int = 0):
     channel_id = get_channel(ctx.guild.id, "mpf")
@@ -426,3 +461,6 @@ async def mpf(ctx, что_поставил: str, ящиков: int, days: int = 
     )
 
     await ctx.followup.send("✅ MPF создан", ephemeral=True)
+
+# START
+bot.run("YOUR_BOT_TOKEN")
