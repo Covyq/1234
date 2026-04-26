@@ -110,7 +110,9 @@ class SkladView(View):
             return await interaction.followup.send("❌ Не найдено", ephemeral=True)
 
         now_dt = datetime.datetime.now(datetime.timezone.utc)
-        new_end = int((now_dt + datetime.timedelta(hours=48)).timestamp())
+
+        # 🔥 1 МИНУТА
+        new_end = int((now_dt + datetime.timedelta(minutes=1)).timestamp())
 
         row.time_end = new_end
         row.last_updated_by = interaction.user.id
@@ -387,7 +389,7 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
 
     await ctx.defer(ephemeral=True)
 
-    # 🔥 ИЗМЕНЕНИЕ: 1 минута вместо 48 часов
+    # 🔥 1 МИНУТА
     end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=1)).timestamp())
 
     text = (
