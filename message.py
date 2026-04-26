@@ -7,7 +7,7 @@ from discord.ui import View, Button
 from peewee import *
 
 # CONFIG
-GUILD_ID = 1278259070666801214
+GUILD_ID = [1278259070666801214]
 ALLOWED_ROLE_IDS = [
     1495286228466270248
 ]
