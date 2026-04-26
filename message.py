@@ -43,7 +43,6 @@ class Timer(BaseModel):
     boxes = IntegerField(null=True)
     taken_by = BigIntegerField(null=True)
 
-    # NEW
     last_updated_by = BigIntegerField(null=True)
     last_updated_at = BigIntegerField(null=True)
 
@@ -388,7 +387,8 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
 
     await ctx.defer(ephemeral=True)
 
-    end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=48)).timestamp())
+    # 🔥 ИЗМЕНЕНИЕ: 1 минута вместо 48 часов
+    end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=1)).timestamp())
 
     text = (
         f"👤 {ctx.author.display_name}\n"
