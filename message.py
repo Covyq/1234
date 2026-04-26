@@ -463,4 +463,4 @@ async def mpf(ctx, что_поставил: str, ящиков: int, days: int = 
     await ctx.followup.send("✅ MPF создан", ephemeral=True)
 
 # START
-bot.run("YOUR_BOT_TOKEN")
+bot.run("MTQ5Nzc5ODg0NjM1OTY2NjgyOA.GTcBiW.XlQS0aTrM7WaL5ViCSPHHxP_pnpRDFlNbJm9DE")
