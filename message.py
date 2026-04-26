@@ -319,6 +319,15 @@ async def setsimpletimer(ctx, channel: discord.TextChannel = None, thread_id: st
     await ctx.respond("✅ таймер канал установлен", ephemeral=True)
 
 
+@bot.slash_command(name="setmpf", guild_ids=[GUILD_ID])
+async def setmpf(ctx, channel: discord.TextChannel):
+    if not has_access(ctx.author):
+        return await ctx.respond("❌ Нет прав", ephemeral=True)
+
+    set_channel(ctx.guild.id, channel.id, "mpf")
+    await ctx.respond("✅ MPF канал установлен", ephemeral=True)
+
+
 @bot.slash_command(name="таймер", guild_ids=[GUILD_ID])
 async def timer(ctx, название: str, days: int = 0, hours: int = 0, minutes: int = 0):
     if days == 0 and hours == 0 and minutes == 0:
@@ -355,15 +364,6 @@ async def timer(ctx, название: str, days: int = 0, hours: int = 0, minut
     )
 
     await ctx.followup.send("✅ Таймер создан", ephemeral=True)
-
-
-@bot.slash_command(name="setmpf", guild_ids=[GUILD_ID])
-async def setmpf(ctx, channel: discord.TextChannel):
-    if not has_access(ctx.author):
-        return await ctx.respond("❌ Нет прав", ephemeral=True)
-
-    set_channel(ctx.guild.id, channel.id, "mpf")
-    await ctx.respond("✅ MPF канал установлен", ephemeral=True)
 
 
 @bot.slash_command(name="мпф", guild_ids=[GUILD_ID])
@@ -408,7 +408,9 @@ async def mpf(ctx, что_поставил: str, ящиков: int, days: int = 
 @bot.slash_command(name="склад", guild_ids=[GUILD_ID])
 async def sklad(ctx, гекс: str, регион: str, склад: str, пароль: str):
     channel_id = get_channel(ctx.guild.id, "sklad")
-    if channel_id and not valid_channel(ctx, channel_id):
+
+    # ✅ ЖЁСТКАЯ ПРОВЕРКА (исправлено)
+    if not channel_id or not valid_channel(ctx, channel_id):
         return await ctx.respond("❌ Не тот канал", ephemeral=True)
 
     await ctx.defer(ephemeral=True)
