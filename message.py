@@ -121,8 +121,8 @@ class SkladView(View):
         nickname = member.display_name if member else "пользователь"
 
         updated_text = (
-            f"{row.text}\n\n"
-            f"⏰ До окончания: <t:{new_end}:R>\n\n"
+            f"{row.text}\n"
+            f"⏰ До окончания: <t:{new_end}:R>\n"
             f"🔄 Обновил склад - {nickname}"
         )
 
@@ -177,7 +177,7 @@ class MPFView(View):
         nickname = member.display_name if member else "пользователь"
 
         await interaction.message.edit(
-            content=interaction.message.content + f"\n\n📦 Забрал: {nickname}",
+            content=interaction.message.content + f"\n📦 Забрал: {nickname}",
             view=self
         )
 
@@ -219,7 +219,7 @@ async def loop():
             nickname = member.display_name if member else "пользователь"
             mention = member.mention if member else "пользователь"
 
-            # 🔥 SKLAD
+            # 🔥 SKLAD (FIXED)
             if t.kind == "sklad":
                 lines = t.text.splitlines()
 
@@ -244,10 +244,10 @@ async def loop():
                 await msg.edit(
                     content=(
                         f"👤 {author_name}\n"
-                        f"🔥Склад {sklad_name} СГОРЕЛ!! в {end_time} 🔥\n\n"
+                        f"🔥Склад {sklad_name} СГОРЕЛ!! в {end_time} 🔥\n"
                         f"**Гекс:** {hex_val}\n"
                         f"**Регион:** {region}\n"
-                        f"**Пароль:** {password}\n\n"
+                        f"**Пароль:** {password}\n"
                         f"**Последний, кто обновлял склад — {updater}**\n"
                         f"⏰ {update_time}"
                     ),
@@ -388,7 +388,7 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
     )
 
     msg = await ctx.send(
-        f"{text}\n\n⏰ До окончания: <t:{end_ts}:R>",
+        f"{text}\n⏰ До окончания: <t:{end_ts}:R>",
         view=SkladView()
     )
 
