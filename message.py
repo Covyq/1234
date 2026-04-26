@@ -428,3 +428,30 @@ async def mpf(ctx, что_поставил: str, ящиков: int, days: int = 
 
 # RUN
 bot.run(os.environ.get("DISCORD_BOT_TOKEN"))
+
+
+@bot.slash_command(name="склад", guild_ids=[GUILD_ID])
+async def sklad(ctx, гекс: str, регион: str, склад: str, пароль: str):
+    try:
+        print("COMMAND START")
+
+        channel_id = get_channel(ctx.guild.id, "sklad")
+        print("CHANNEL:", channel_id)
+
+        await ctx.defer(ephemeral=True)
+
+        print("DEFER OK")
+
+        end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=48)).timestamp())
+
+        text = "test"
+
+        msg = await ctx.send("test message")
+        print("MESSAGE SENT")
+
+        await ctx.followup.send("OK", ephemeral=True)
+
+    except Exception as e:
+        print("ERROR:", e)
+        import traceback
+        traceback.print_exc()
