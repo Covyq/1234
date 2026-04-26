@@ -7,8 +7,7 @@ from discord.ui import View, Button
 from peewee import *
 
 # CONFIG
-GUILD_ID = 1278259070666801214
-
+GUILD_ID = 419565206335651840
 ALLOWED_ROLE_IDS = [
     1493199914572972032,
     123456789012345678,
@@ -45,8 +44,8 @@ class Timer(BaseModel):
     taken_by = BigIntegerField(null=True)
 
     # NEW
-    last_update_user = BigIntegerField(null=True)
-    last_update_time = BigIntegerField(null=True)
+    last_updated_by = BigIntegerField(null=True)
+    last_updated_at = BigIntegerField(null=True)
 
 db.connect(reuse_if_open=True)
 db.create_tables([ChannelConfig, Timer])
@@ -111,12 +110,12 @@ class SkladView(View):
         if not row:
             return await interaction.followup.send("❌ Не найдено", ephemeral=True)
 
-        now = datetime.datetime.now(datetime.timezone.utc)
-        new_end = int((now + datetime.timedelta(minutes=1)).timestamp())
+        now_dt = datetime.datetime.now(datetime.timezone.utc)
+        new_end = int((now_dt + datetime.timedelta(hours=48)).timestamp())
 
         row.time_end = new_end
-        row.last_update_user = interaction.user.id
-        row.last_update_time = int(now.timestamp())
+        row.last_updated_by = interaction.user.id
+        row.last_updated_at = int(now_dt.timestamp())
         row.save()
 
         member = interaction.guild.get_member(interaction.user.id)
@@ -132,14 +131,11 @@ class SkladView(View):
 
     async def delete(self, interaction):
         await interaction.response.defer()
-
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
         if not row or interaction.user.id != row.author:
             return await interaction.followup.send("❌ Только автор", ephemeral=True)
-
         row.delete_instance()
         await interaction.message.delete()
-
 
 class TimerView(View):
     def __init__(self):
@@ -155,7 +151,6 @@ class TimerView(View):
             return await interaction.followup.send("❌ Только автор", ephemeral=True)
         row.delete_instance()
         await interaction.message.delete()
-
 
 class MPFView(View):
     def __init__(self, show_take=False):
@@ -254,32 +249,32 @@ async def loop():
                 continue
 
             if t.kind == "sklad":
-                try:
-                    lines = t.text.split("\n")
-                    hex_value = lines[1].replace("**Гекс:** ", "")
-                    region = lines[2].replace("**Регион:** ", "")
-                    sklad_name = lines[3].replace("**Склад:** ", "")
-                    password = lines[4].replace("**Пароль:** ", "")
-                except:
-                    hex_value = region = sklad_name = password = "?"
+                lines = t.text.splitlines()
 
-                updater_name = "никто"
-                update_time = "неизвестно"
+                hex_val = lines[1].replace("**Гекс:** ", "")
+                region = lines[2].replace("**Регион:** ", "")
+                sklad_name = lines[3].replace("**Склад:** ", "")
+                password = lines[4].replace("**Пароль:** ", "")
 
-                if t.last_update_user:
-                    member = guild.get_member(t.last_update_user)
-                    updater_name = member.display_name if member else "пользователь"
+                end_time = f"<t:{t.time_end}:F>"
 
-                if t.last_update_time:
-                    update_time = f"<t:{t.last_update_time}:F>"
+                updater = "никто"
+                update_time = "никогда"
+
+                if t.last_updated_by:
+                    member_upd = guild.get_member(t.last_updated_by)
+                    updater = member_upd.display_name if member_upd else "пользователь"
+
+                if t.last_updated_at:
+                    update_time = f"<t:{t.last_updated_at}:F>"
 
                 await msg.edit(
                     content=(
-                        f"🔥Склад {sklad_name} СГОРЕЛ в <t:{t.time_end}:F> 🔥\n"
-                        f"🔥{hex_value}🔥\n"
+                        f"🔥Склад {sklad_name} СГОРЕЛ в {end_time} 🔥\n"
+                        f"🔥{hex_val}🔥\n"
                         f"🔥{region}🔥\n"
                         f"🔥{password}🔥\n"
-                        f"🔥{updater_name} обновил склад в {update_time}🔥"
+                        f"🔥{updater} обновил в {update_time}🔥"
                     ),
                     view=None
                 )
@@ -289,6 +284,25 @@ async def loop():
         except Exception:
             print(traceback.format_exc())
             t.delete_instance()
+
+# RESTORE
+async def restore_views():
+    for t in Timer.select():
+        try:
+            channel = bot.get_channel(t.channel_id)
+            if not channel:
+                continue
+
+            msg = await channel.fetch_message(t.message_id)
+
+            if t.kind == "sklad":
+                await msg.edit(view=SkladView())
+            elif t.kind == "timer":
+                await msg.edit(view=TimerView())
+            elif t.kind == "mpf":
+                await msg.edit(view=MPFView(show_take=bool(t.taken_by)))
+        except:
+            continue
 
 # READY
 @bot.event
@@ -301,10 +315,12 @@ async def on_ready():
     bot.add_view(TimerView())
     bot.add_view(MPFView())
 
+    await restore_views()
+
     if not loop.is_running():
         loop.start()
 
-# COMMANDS (ВСЕ ОРИГИНАЛЬНЫЕ)
+# COMMANDS
 
 @bot.slash_command(name="setskladchannel", guild_ids=[GUILD_ID])
 async def setskladchannel(ctx, channel: discord.TextChannel):
@@ -313,46 +329,23 @@ async def setskladchannel(ctx, channel: discord.TextChannel):
     set_channel(ctx.guild.id, channel.id, "sklad")
     await ctx.respond("✅ склад установлен", ephemeral=True)
 
-
 @bot.slash_command(name="setsimpletimer", guild_ids=[GUILD_ID])
 async def setsimpletimer(ctx, channel: discord.TextChannel = None, thread_id: str = None):
     if not has_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
 
-    target_id = None
-    if channel:
-        target_id = channel.id
-    elif thread_id:
-        try:
-            target_id = int(thread_id)
-        except ValueError:
-            return await ctx.respond("❌ Неверный ID", ephemeral=True)
-    else:
-        return await ctx.respond("❌ Укажи канал или thread_id", ephemeral=True)
-
+    target_id = channel.id if channel else int(thread_id)
     set_channel(ctx.guild.id, target_id, "simple")
-    await ctx.respond(f"✅ таймер установлен: {target_id}", ephemeral=True)
-
+    await ctx.respond("✅ таймер установлен", ephemeral=True)
 
 @bot.slash_command(name="setmpf", guild_ids=[GUILD_ID])
 async def setmpf(ctx, channel: discord.TextChannel = None, thread_id: str = None):
     if not has_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
 
-    target_id = None
-    if channel:
-        target_id = channel.id
-    elif thread_id:
-        try:
-            target_id = int(thread_id)
-        except ValueError:
-            return await ctx.respond("❌ Неверный ID", ephemeral=True)
-    else:
-        return await ctx.respond("❌ Укажи канал или thread_id", ephemeral=True)
-
+    target_id = channel.id if channel else int(thread_id)
     set_channel(ctx.guild.id, target_id, "mpf")
-    await ctx.respond(f"✅ MPF установлен: {target_id}", ephemeral=True)
-
+    await ctx.respond("✅ MPF установлен", ephemeral=True)
 
 @bot.slash_command(name="таймер", guild_ids=[GUILD_ID])
 async def timer(ctx, название: str, days: int = 0, hours: int = 0, minutes: int = 0):
@@ -387,7 +380,6 @@ async def timer(ctx, название: str, days: int = 0, hours: int = 0, minut
 
     await ctx.followup.send("✅ таймер создан", ephemeral=True)
 
-
 @bot.slash_command(name="склад", guild_ids=[GUILD_ID])
 async def sklad(ctx, гекс: str, регион: str, склад: str, пароль: str):
     channel_id = get_channel(ctx.guild.id, "sklad")
@@ -396,7 +388,7 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
 
     await ctx.defer(ephemeral=True)
 
-    end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=1)).timestamp())
+    end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=48)).timestamp())
 
     text = (
         f"👤 {ctx.author.display_name}\n"
@@ -418,9 +410,7 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
         text=text,
         time_end=end_ts,
         author=ctx.author.id,
-        kind="sklad",
-        last_update_user=None,
-        last_update_time=None
+        kind="sklad"
     )
 
     await ctx.followup.send("✅ склад создан", ephemeral=True)
@@ -462,5 +452,5 @@ async def mpf(ctx, что_поставил: str, ящиков: int, days: int = 
 
     await ctx.followup.send("✅ MPF создан", ephemeral=True)
 
-# START
-bot.run("MTQ5Nzc5ODg0NjM1OTY2NjgyOA.GTcBiW.XlQS0aTrM7WaL5ViCSPHHxP_pnpRDFlNbJm9DE")
+# RUN
+bot.run(os.environ.get("DISCORD_BOT_TOKEN"))
