@@ -110,8 +110,6 @@ class SkladView(View):
             return await interaction.followup.send("❌ Не найдено", ephemeral=True)
 
         now_dt = datetime.datetime.now(datetime.timezone.utc)
-
-        # 🔥 1 МИНУТА
         new_end = int((now_dt + datetime.timedelta(minutes=1)).timestamp())
 
         row.time_end = new_end
@@ -221,37 +219,11 @@ async def loop():
             nickname = member.display_name if member else "пользователь"
             mention = member.mention if member else "пользователь"
 
-            if t.kind == "mpf":
-                item = t.text.split("📦 Что поставил: ")[1].splitlines()[0]
-                await msg.edit(
-                    content=(
-                        f"👤 Кто поставил: {nickname}\n"
-                        f"📦 Что поставил: {item}\n"
-                        f"📦 Ящиков: {t.boxes}\n"
-                        f"Статус: ✅"
-                    ),
-                    view=MPFView(show_take=True)
-                )
-                t.time_end = now + 10**9
-                t.save()
-                continue
-
-            if t.kind == "timer":
-                await msg.edit(
-                    content=(
-                        f"👤 {mention}\n"
-                        f"📌 {t.text}\n"
-                        f"✅ Статус: выполнено"
-                    ),
-                    view=TimerView()
-                )
-                t.time_end = now + 10**9
-                t.save()
-                continue
-
+            # 🔥 SKLAD
             if t.kind == "sklad":
                 lines = t.text.splitlines()
 
+                author_name = lines[0].replace("👤 ", "")
                 hex_val = lines[1].replace("**Гекс:** ", "")
                 region = lines[2].replace("**Регион:** ", "")
                 sklad_name = lines[3].replace("**Склад:** ", "")
@@ -271,39 +243,53 @@ async def loop():
 
                 await msg.edit(
                     content=(
-                        f"🔥Склад {sklad_name} СГОРЕЛ в {end_time} 🔥\n"
-                        f"🔥{hex_val}🔥\n"
-                        f"🔥{region}🔥\n"
-                        f"🔥{password}🔥\n"
-                        f"🔥{updater} обновил в {update_time}🔥"
+                        f"👤 {author_name}\n"
+                        f"🔥Склад {sklad_name} СГОРЕЛ!! в {end_time} 🔥\n\n"
+                        f"**Гекс:** {hex_val}\n"
+                        f"**Регион:** {region}\n"
+                        f"**Пароль:** {password}\n\n"
+                        f"**Последний, кто обновлял склад — {updater}**\n"
+                        f"⏰ {update_time}"
                     ),
                     view=None
                 )
 
                 t.delete_instance()
+                continue
+
+            # TIMER
+            if t.kind == "timer":
+                await msg.edit(
+                    content=(
+                        f"👤 {mention}\n"
+                        f"📌 {t.text}\n"
+                        f"✅ Статус: выполнено"
+                    ),
+                    view=TimerView()
+                )
+                t.time_end = now + 10**9
+                t.save()
+                continue
+
+            # MPF
+            if t.kind == "mpf":
+                item = t.text.split("📦 Что поставил: ")[1].splitlines()[0]
+                await msg.edit(
+                    content=(
+                        f"👤 Кто поставил: {nickname}\n"
+                        f"📦 Что поставил: {item}\n"
+                        f"📦 Ящиков: {t.boxes}\n"
+                        f"Статус: ✅"
+                    ),
+                    view=MPFView(show_take=True)
+                )
+                t.time_end = now + 10**9
+                t.save()
+                continue
 
         except Exception:
             print(traceback.format_exc())
             t.delete_instance()
-
-# RESTORE
-async def restore_views():
-    for t in Timer.select():
-        try:
-            channel = bot.get_channel(t.channel_id)
-            if not channel:
-                continue
-
-            msg = await channel.fetch_message(t.message_id)
-
-            if t.kind == "sklad":
-                await msg.edit(view=SkladView())
-            elif t.kind == "timer":
-                await msg.edit(view=TimerView())
-            elif t.kind == "mpf":
-                await msg.edit(view=MPFView(show_take=bool(t.taken_by)))
-        except:
-            continue
 
 # READY
 @bot.event
@@ -315,8 +301,6 @@ async def on_ready():
     bot.add_view(SkladView())
     bot.add_view(TimerView())
     bot.add_view(MPFView())
-
-    await restore_views()
 
     if not loop.is_running():
         loop.start()
@@ -384,12 +368,15 @@ async def timer(ctx, название: str, days: int = 0, hours: int = 0, minut
 @bot.slash_command(name="склад", guild_ids=[GUILD_ID])
 async def sklad(ctx, гекс: str, регион: str, склад: str, пароль: str):
     channel_id = get_channel(ctx.guild.id, "sklad")
-    if channel_id and ctx.channel.id != channel_id:
+
+    if not channel_id:
+        return await ctx.respond("❌ канал для склада не настроен", ephemeral=True)
+
+    if ctx.channel.id != channel_id:
         return await ctx.respond("❌ не тот канал", ephemeral=True)
 
     await ctx.defer(ephemeral=True)
 
-    # 🔥 1 МИНУТА
     end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=1)).timestamp())
 
     text = (
