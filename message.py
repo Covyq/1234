@@ -19,7 +19,6 @@ ALLOWED_ROLE_IDS = [
 bot = discord.Bot(intents=discord.Intents.all(), debug_guilds=[GUILD_ID])
 db = SqliteDatabase("TimerDataBase.db")
 
-# CACHE
 CHANNEL_CACHE = {"sklad": {}, "simple": {}, "mpf": {}}
 
 # DB
@@ -42,7 +41,6 @@ class Timer(BaseModel):
     kind = TextField(default="timer")
     boxes = IntegerField(null=True)
     taken_by = BigIntegerField(null=True)
-
     last_updated_by = BigIntegerField(null=True)
     last_updated_at = BigIntegerField(null=True)
 
@@ -88,7 +86,8 @@ def clean_channels():
         if not guild or guild.get_channel_or_thread(row.channel_id) is None:
             row.delete_instance()
 
-# VIEWS
+# ================= VIEWS =================
+
 class SkladView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -136,7 +135,6 @@ class SkladView(View):
         row.delete_instance()
         await interaction.message.delete()
 
-# 👇 НОВОЕ
 class SkladExpiredView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -146,7 +144,6 @@ class SkladExpiredView(View):
             style=discord.ButtonStyle.red,
             custom_id="sklad_expired_delete"
         )
-
         btn_delete.callback = self.delete
         self.add_item(btn_delete)
 
@@ -157,7 +154,6 @@ class SkladExpiredView(View):
             return await interaction.followup.send("❌ Нет доступа", ephemeral=True)
 
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
-
         if row:
             row.delete_instance()
 
@@ -218,22 +214,105 @@ class MPFView(View):
         row.delete_instance()
         await interaction.message.delete()
 
-# LOOP
-@tasks.loop(seconds=30)
-async def loop():
-    now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
-    expired = Timer.select().where(Timer.time_end < now)
+# ================= LOGIC =================
 
-    for t in expired:
+async def process_expired_timer(t):
+    guild = bot.get_guild(t.guild_id)
+    if not guild:
+        t.delete_instance()
+        return
+
+    channel = guild.get_channel_or_thread(t.channel_id)
+    if not channel:
+        t.delete_instance()
+        return
+
+    try:
+        msg = await channel.fetch_message(t.message_id)
+    except discord.NotFound:
+        t.delete_instance()
+        return
+
+    member = guild.get_member(t.author)
+    nickname = member.display_name if member else "пользователь"
+    mention = member.mention if member else "пользователь"
+
+    if t.kind == "sklad":
+        lines = t.text.splitlines()
+
+        author_name = lines[0].replace("👤 ", "")
+        hex_val = lines[1].replace("**Гекс:** ", "")
+        region = lines[2].replace("**Регион:** ", "")
+        sklad_name = lines[3].replace("**Склад:** ", "")
+        password = lines[4].replace("**Пароль:** ", "")
+
+        end_time = f"<t:{t.time_end}:F>"
+
+        updater = "никто"
+        update_time = "никогда"
+
+        if t.last_updated_by:
+            member_upd = guild.get_member(t.last_updated_by)
+            updater = member_upd.display_name if member_upd else "пользователь"
+
+        if t.last_updated_at:
+            update_time = f"<t:{t.last_updated_at}:F>"
+
+        await msg.edit(
+            content=(
+                f"👤 {author_name}\n"
+                f"🔥Склад {sklad_name} СГОРЕЛ!! в {end_time} 🔥\n"
+                f"**Гекс:** {hex_val}\n"
+                f"**Регион:** {region}\n"
+                f"**Пароль:** {password}\n"
+                f"**Последний, кто обновлял склад — {updater}**\n"
+                f"⏰ {update_time}"
+            ),
+            view=SkladExpiredView()
+        )
+
+        t.delete_instance()
+        return
+
+    if t.kind == "timer":
+        await msg.edit(
+            content=(
+                f"👤 {mention}\n"
+                f"📌 {t.text}\n"
+                f"✅ Статус: выполнено"
+            ),
+            view=TimerView()
+        )
+        t.time_end = int(datetime.datetime.now(datetime.timezone.utc).timestamp()) + 10**9
+        t.save()
+        return
+
+    if t.kind == "mpf":
+        item = t.text.split("📦 Что поставил: ")[1].splitlines()[0]
+        await msg.edit(
+            content=(
+                f"👤 Кто поставил: {nickname}\n"
+                f"📦 Что поставил: {item}\n"
+                f"📦 Ящиков: {t.boxes}\n"
+                f"Статус: ✅"
+            ),
+            view=MPFView(show_take=True)
+        )
+        t.time_end = int(datetime.datetime.now(datetime.timezone.utc).timestamp()) + 10**9
+        t.save()
+
+# RESTORE
+async def restore_messages():
+    now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+
+    for t in Timer.select():
         try:
             guild = bot.get_guild(t.guild_id)
             if not guild:
-                t.delete_instance()
                 continue
 
             channel = guild.get_channel_or_thread(t.channel_id)
             if not channel:
-                t.delete_instance()
                 continue
 
             try:
@@ -242,78 +321,31 @@ async def loop():
                 t.delete_instance()
                 continue
 
-            member = guild.get_member(t.author)
-            nickname = member.display_name if member else "пользователь"
-            mention = member.mention if member else "пользователь"
+            if t.time_end < now:
+                await process_expired_timer(t)
+                continue
 
-            # SKLAD
             if t.kind == "sklad":
-                lines = t.text.splitlines()
+                await msg.edit(view=SkladView())
 
-                author_name = lines[0].replace("👤 ", "")
-                hex_val = lines[1].replace("**Гекс:** ", "")
-                region = lines[2].replace("**Регион:** ", "")
-                sklad_name = lines[3].replace("**Склад:** ", "")
-                password = lines[4].replace("**Пароль:** ", "")
+            elif t.kind == "timer":
+                await msg.edit(view=TimerView())
 
-                end_time = f"<t:{t.time_end}:F>"
+            elif t.kind == "mpf":
+                await msg.edit(view=MPFView(show_take=False))
 
-                updater = "никто"
-                update_time = "никогда"
+        except Exception:
+            print(traceback.format_exc())
 
-                if t.last_updated_by:
-                    member_upd = guild.get_member(t.last_updated_by)
-                    updater = member_upd.display_name if member_upd else "пользователь"
+# LOOP
+@tasks.loop(seconds=30)
+async def loop():
+    now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+    expired = Timer.select().where(Timer.time_end < now)
 
-                if t.last_updated_at:
-                    update_time = f"<t:{t.last_updated_at}:F>"
-
-                await msg.edit(
-                    content=(
-                        f"👤 {author_name}\n"
-                        f"🔥Склад {sklad_name} СГОРЕЛ!! в {end_time} 🔥\n"
-                        f"**Гекс:** {hex_val}\n"
-                        f"**Регион:** {region}\n"
-                        f"**Пароль:** {password}\n"
-                        f"**Последний, кто обновлял склад — {updater}**\n"
-                        f"⏰ {update_time}"
-                    ),
-                    view=SkladExpiredView()
-                )
-
-                t.delete_instance()
-                continue
-
-            # TIMER
-            if t.kind == "timer":
-                await msg.edit(
-                    content=(
-                        f"👤 {mention}\n"
-                        f"📌 {t.text}\n"
-                        f"✅ Статус: выполнено"
-                    ),
-                    view=TimerView()
-                )
-                t.time_end = now + 10**9
-                t.save()
-                continue
-
-            # MPF
-            if t.kind == "mpf":
-                item = t.text.split("📦 Что поставил: ")[1].splitlines()[0]
-                await msg.edit(
-                    content=(
-                        f"👤 Кто поставил: {nickname}\n"
-                        f"📦 Что поставил: {item}\n"
-                        f"📦 Ящиков: {t.boxes}\n"
-                        f"Статус: ✅"
-                    ),
-                    view=MPFView(show_take=True)
-                )
-                t.time_end = now + 10**9
-                t.save()
-                continue
-
+    for t in expired:
+        try:
+            await process_expired_timer(t)
         except Exception:
             print(traceback.format_exc())
             t.delete_instance()
@@ -322,6 +354,7 @@ async def loop():
 @bot.event
 async def on_ready():
     print(f"Bot online {bot.user}")
+
     clean_channels()
     load_channels()
 
@@ -330,10 +363,12 @@ async def on_ready():
     bot.add_view(MPFView())
     bot.add_view(SkladExpiredView())
 
+    await restore_messages()
+
     if not loop.is_running():
         loop.start()
 
-# COMMANDS
+# ================= COMMANDS =================
 
 @bot.slash_command(name="setskladchannel", guild_ids=[GUILD_ID])
 async def setskladchannel(ctx, channel: discord.TextChannel):
