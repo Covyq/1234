@@ -229,7 +229,7 @@ async def aktivnost(ctx, цель: str, гекс: str, регион: str, кол
         return await ctx.respond("❌ не тот канал", ephemeral=True)
 
     embed = discord.Embed(
-        title="🎯 Новая активность",
+        title="Цель активности",
         color=discord.Color.blue()
     )
 
