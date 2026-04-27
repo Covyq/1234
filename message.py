@@ -111,10 +111,13 @@ class SkladView(View):
         row.time_end = new_end
         row.save()
 
-        await interaction.message.edit(
-            content=f"{row.text}\n⏰ <t:{new_end}:R>",
-            view=self
+        new_text = (
+            f"{row.text}\n"
+            f"⏰ <t:{new_end}:R>\n"
+            f"🔄 Обновил: {interaction.user.mention}"
         )
+
+        await interaction.message.edit(content=new_text, view=self)
 
     @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red, custom_id="sklad_delete")
     async def delete(self, button, interaction):
@@ -145,6 +148,28 @@ class TimerView(View):
 class MPFView(View):
     def __init__(self):
         super().__init__(timeout=None)
+
+    @discord.ui.button(label="Забрал заказ", style=discord.ButtonStyle.success, custom_id="mpf_take")
+    async def take(self, button, interaction):
+        await interaction.response.defer()
+
+        row = Timer.get_or_none(Timer.message_id == interaction.message.id)
+        if not row:
+            return
+
+        now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
+        if row.time_end and now < row.time_end:
+            return await interaction.followup.send("⏳ Таймер ещё не закончился", ephemeral=True)
+
+        if "Забрал заказ" in interaction.message.content:
+            return await interaction.followup.send("❌ Уже забрали", ephemeral=True)
+
+        new_text = interaction.message.content + f"\n\n✅ Забрал заказ: {interaction.user.mention}"
+
+        for item in self.children:
+            item.disabled = True
+
+        await interaction.message.edit(content=new_text, view=self)
 
     @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red, custom_id="mpf_delete")
     async def delete(self, button, interaction):
@@ -285,10 +310,7 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
         f"**Пароль:** {пароль}"
     )
 
-    msg = await ctx.channel.send(
-        f"{text}\n⏰ <t:{end_ts}:R>",
-        view=SkladView()
-    )
+    msg = await ctx.channel.send(f"{text}\n⏰ <t:{end_ts}:R>", view=SkladView())
 
     Timer.create(
         guild_id=ctx.guild.id,
