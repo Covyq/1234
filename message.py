@@ -6,18 +6,20 @@ from discord.ext import tasks
 from discord.ui import View, Button
 from peewee import *
 
-# ================= Конфиг =================
+# ================= CONFIG =================
 
 GUILD_ID = 419565206335651840
 
 ALLOWED_ROLE_IDS = [
     1420081710510379079,
     694197038362918923,
+    1397716497928949843,
     1397716702242013276,
+    475990315623251969,
     422500854910681089,
     1224787828815171595,
     1477953756225081394,
-    831242102179758100,
+    831242102179758100
 ]
 
 bot = discord.Bot(intents=discord.Intents.all(), debug_guilds=[GUILD_ID])
@@ -69,7 +71,7 @@ class Timer(BaseModel):
 db.connect(reuse_if_open=True)
 db.create_tables([ChannelConfig, Timer])
 
-# ================= Каналы =================
+# ================= CHANNELS =================
 
 def load_channels():
     global CHANNEL_CACHE
@@ -115,7 +117,7 @@ def has_access(member):
         any(r.id in ALLOWED_ROLE_IDS for r in member.roles)
     )
 
-# ================= Очистка =================
+# ================= CLEAN =================
 
 def clean_channels():
     for row in ChannelConfig.select():
@@ -123,7 +125,7 @@ def clean_channels():
         if not guild or guild.get_channel_or_thread(row.channel_id) is None:
             row.delete_instance()
 
-# ================= Уведомления =================
+# ================= NOTIFICATIONS =================
 
 async def send_sklad_notification(t):
     guild = bot.get_guild(t.guild_id)
@@ -180,7 +182,7 @@ async def delete_notifications(t, guild):
     t.last_notify_time = None
     t.save()
 
-# ================= Просмотры =================
+# ================= VIEWS =================
 
 class SkladView(View):
     def __init__(self):
@@ -290,7 +292,7 @@ class MPFView(View):
         row.delete_instance()
         await interaction.message.delete()
 
-# ================= Логика =================
+# ================= LOGIC =================
 
 async def process_expired_timer(t):
     guild = bot.get_guild(t.guild_id)
@@ -333,7 +335,7 @@ async def process_expired_timer(t):
         )
         return
 
-# ================= Восстановление =================
+# ================= RESTORE =================
 
 async def restore_messages():
     now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
@@ -379,7 +381,7 @@ async def restore_messages():
         except:
             print(traceback.format_exc())
 
-# ================= Петля =================
+# ================= LOOP =================
 
 @tasks.loop(seconds=30)
 async def loop():
@@ -416,7 +418,7 @@ async def loop():
         except:
             print(traceback.format_exc())
 
-# ================= События =================
+# ================= EVENTS =================
 
 @bot.event
 async def on_ready():
@@ -445,7 +447,7 @@ async def on_raw_message_delete(payload):
     except:
         print(traceback.format_exc())
 
-# ================= Команды =================
+# ================= COMMANDS =================
 
 @bot.slash_command(name="setskladchannel", guild_ids=[GUILD_ID])
 async def setskladchannel(ctx, sklad_channel: discord.TextChannel, notify_channel: discord.TextChannel):
@@ -594,6 +596,6 @@ async def mpf(ctx, что_поставил: str, ящиков: int, days: int = 
 
     await ctx.followup.send("✅ MPF создан", ephemeral=True)
 
-# ================= Запуск =================
+# ================= RUN =================
 
 bot.run(os.environ.get("DISCORD_BOT_TOKEN"))
