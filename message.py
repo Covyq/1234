@@ -217,7 +217,7 @@ async def setaktivchat(ctx, channel: discord.TextChannel):
     set_channel(ctx.guild.id, channel.id, "aktiv")
     await ctx.respond("✅ Актив чат установлен", ephemeral=True)
 
-# ===== АКТИВНОСТЬ =====
+# ===== АКТИВНОСТЬ (УЛУЧШЕНА) =====
 
 @bot.slash_command(name="активность", guild_ids=[GUILD_ID])
 async def aktivnost(ctx, цель: str, локация: str, нужно: str, voice: discord.VoiceChannel):
@@ -228,15 +228,23 @@ async def aktivnost(ctx, цель: str, локация: str, нужно: str, vo
     if not channel_id or ctx.channel.id != channel_id:
         return await ctx.respond("❌ не тот канал", ephemeral=True)
 
-    text = (
-        f":dart: ЦЕЛЬ: {цель}\n"
-        f":round_pushpin: ЛОКАЦИЯ: {локация}\n"
-        f":busts_in_silhouette: НУЖНО: {нужно}\n"
-        f"🔊 Канал: {voice.mention}\n"
-        f"👤 Создал: {ctx.author.mention}"
+    embed = discord.Embed(
+        title="🎯 Новая активность",
+        color=discord.Color.blue()
     )
 
-    await ctx.send(text, view=AktivView(ctx.author.id))
+    embed.add_field(name="Цель", value=цель, inline=False)
+    embed.add_field(name="Локация", value=локация, inline=True)
+    embed.add_field(name="Нужно людей", value=нужно, inline=True)
+    embed.add_field(name="Голосовой канал", value=voice.mention, inline=False)
+
+    embed.set_footer(text=f"Создал: {ctx.author.display_name}")
+    embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
+
+    if ctx.guild.icon:
+        embed.set_thumbnail(url=ctx.guild.icon.url)
+
+    await ctx.send(embed=embed, view=AktivView(ctx.author.id))
     await ctx.respond("✅ Активность создана", ephemeral=True)
 
 # ===== ТАЙМЕР =====
