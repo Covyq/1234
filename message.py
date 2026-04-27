@@ -166,7 +166,7 @@ class MPFView(View):
         row.delete_instance()
         await interaction.message.delete()
 
-# ======= NEW АКТИВ VIEW =======
+# ===== АКТИВНОСТЬ VIEW =====
 
 class AktivView(View):
     def __init__(self, author_id):
@@ -179,29 +179,7 @@ class AktivView(View):
             return False
         return True
 
-    async def set_state(self, interaction, state_text, emoji, comment):
-        await interaction.response.defer()
-
-        content = interaction.message.content + f"\n\n📊 СОСТОЯНИЕ: {emoji} {state_text} — {comment}"
-        await interaction.message.edit(content=content, view=None)
-
-    @discord.ui.button(label="🟥 критично", style=discord.ButtonStyle.red)
-    async def critical(self, button, interaction):
-        await self.set_state(interaction, "критично", "🟥", "требуется срочно")
-
-    @discord.ui.button(label="🟧 напряжённо", style=discord.ButtonStyle.secondary)
-    async def hard(self, button, interaction):
-        await self.set_state(interaction, "напряжённо", "🟧", "есть сложности")
-
-    @discord.ui.button(label="🟨 стабильно", style=discord.ButtonStyle.primary)
-    async def stable(self, button, interaction):
-        await self.set_state(interaction, "стабильно", "🟨", "под контролем")
-
-    @discord.ui.button(label="🟩 спокойно", style=discord.ButtonStyle.success)
-    async def easy(self, button, interaction):
-        await self.set_state(interaction, "спокойно", "🟩", "всё хорошо")
-
-    @discord.ui.button(label="Удалить", style=discord.ButtonStyle.danger)
+    @discord.ui.button(label="Удалить активность", style=discord.ButtonStyle.danger)
     async def delete(self, button, interaction):
         await interaction.response.defer()
         await interaction.message.delete()
@@ -242,10 +220,10 @@ async def setaktivchat(ctx, channel: discord.TextChannel):
     set_channel(ctx.guild.id, channel.id, "aktiv")
     await ctx.respond("✅ Актив чат установлен", ephemeral=True)
 
-# ===== АКТИВ =====
+# ===== АКТИВНОСТЬ =====
 
-@bot.slash_command(name="актив", guild_ids=[GUILD_ID])
-async def aktiv(ctx, цель: str, локация: str, нужно: str, voice: discord.VoiceChannel):
+@bot.slash_command(name="активность", guild_ids=[GUILD_ID])
+async def aktivnost(ctx, цель: str, локация: str, нужно: str, voice: discord.VoiceChannel):
     if not has_aktiv_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
 
@@ -257,11 +235,12 @@ async def aktiv(ctx, цель: str, локация: str, нужно: str, voice:
         f":dart: ЦЕЛЬ: {цель}\n"
         f":round_pushpin: ЛОКАЦИЯ: {локация}\n"
         f":busts_in_silhouette: НУЖНО: {нужно}\n"
-        f"🔊 Канал: {voice.mention}"
+        f"🔊 Канал: {voice.mention}\n"
+        f"👤 Создал: {ctx.author.mention}"
     )
 
     await ctx.send(text, view=AktivView(ctx.author.id))
-    await ctx.respond("✅ Актив создан", ephemeral=True)
+    await ctx.respond("✅ Активность создана", ephemeral=True)
 
 # ===== ТАЙМЕР =====
 
@@ -354,5 +333,6 @@ async def on_ready():
     bot.add_view(SkladView())
     bot.add_view(TimerView())
     bot.add_view(MPFView())
+    bot.add_view(AktivView(0))  # важно для восстановления кнопки
 
 bot.run(os.environ.get("DISCORD_BOT_TOKEN"))
