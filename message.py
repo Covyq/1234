@@ -242,7 +242,8 @@ async def aktivnost(ctx, цель: str, локация: str, нужно: str, vo
     embed.add_field(name="Локация", value=локация, inline=True)
     embed.add_field(name="Нужно людей", value=нужно, inline=True)
 
-    embed.add_field(name="🔊 Подключение", value=voice.mention, inline=False)
+    # 👇 канал внизу без подписи
+    embed.description = f"🔊 {voice.mention}"
 
     embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
 
