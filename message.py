@@ -134,8 +134,17 @@ class SkladView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-        btn_update = Button(label="Обновить склад", style=discord.ButtonStyle.green)
-        btn_delete = Button(label="Удалить", style=discord.ButtonStyle.red)
+        btn_update = Button(
+            label="Обновить склад",
+            style=discord.ButtonStyle.green,
+            custom_id="sklad_update"
+        )
+
+        btn_delete = Button(
+            label="Удалить",
+            style=discord.ButtonStyle.red,
+            custom_id="sklad_delete"
+        )
 
         btn_update.callback = self.update
         btn_delete.callback = self.delete
@@ -198,7 +207,12 @@ class TimerView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-        btn = Button(label="Удалить таймер", style=discord.ButtonStyle.red)
+        btn = Button(
+            label="Удалить таймер",
+            style=discord.ButtonStyle.red,
+            custom_id="timer_delete"
+        )
+
         btn.callback = self.delete
         self.add_item(btn)
 
@@ -214,12 +228,23 @@ class MPFView(View):
     def __init__(self, show_take=False):
         super().__init__(timeout=None)
 
-        delete = Button(label="Удалить таймер", style=discord.ButtonStyle.red)
-        delete.callback = self.delete
-        self.add_item(delete)
+        delete = Button(
+            label="Удалить таймер",
+            style=discord.ButtonStyle.red,
+            custom_id="mpf_delete"
+        )
 
-        take = Button(label="Забрал заказ", style=discord.ButtonStyle.green, disabled=not show_take)
+        take = Button(
+            label="Забрал заказ",
+            style=discord.ButtonStyle.green,
+            custom_id="mpf_take",
+            disabled=not show_take
+        )
+
+        delete.callback = self.delete
         take.callback = self.take
+
+        self.add_item(delete)
         self.add_item(take)
 
     async def take(self, interaction):
@@ -294,7 +319,7 @@ async def loop():
 
                 notify_text = (
                     f"@склад Ваш склад {sklad_name} скоро сгорит!\n"
-                    f"Пожалуйста, обновите его в игре и в чате!"
+                    f"Пожалуйста, обновите его в игре и обновите его в чате складов!"
                 )
 
                 if remaining <= 10800 and not t.notified_3h:
