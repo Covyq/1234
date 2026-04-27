@@ -99,69 +99,6 @@ def has_aktiv_access(member):
 
 # ================= АКТИВ =================
 
-class AktivModal(discord.ui.Modal):
-    def __init__(self, view, emoji, state):
-        super().__init__(title=f"{emoji} {state}")
-        self.view_ref = view
-        self.emoji = emoji
-        self.state = state
-
-        self.comment = discord.ui.InputText(label="Комментарий", required=True)
-        self.add_item(self.comment)
-
-    async def callback(self, interaction):
-        new_text = (
-            f"{self.view_ref.base_text}\n"
-            f":package: СОСТОЯНИЕ: {self.emoji} {self.state}\n"
-            f"💬 Комментарий: {self.comment.value}"
-        )
-        await interaction.message.edit(content=new_text, view=self.view_ref)
-        await interaction.response.send_message("✅ Обновлено", ephemeral=True)
-
-
-class AktivView(View):
-    def __init__(self, author_id, base_text):
-        super().__init__(timeout=None)
-        self.author_id = author_id
-        self.base_text = base_text
-
-    async def open_modal(self, interaction, emoji, state):
-        await interaction.response.send_modal(AktivModal(self, emoji, state))
-
-    @discord.ui.button(label="🟥 Критично", style=discord.ButtonStyle.red, custom_id="aktiv_critical")
-    async def critical(self, button, interaction):
-        await self.open_modal(interaction, "🟥", "критично")
-
-    @discord.ui.button(label="🟧 Напряжённо", style=discord.ButtonStyle.secondary, custom_id="aktiv_hard")
-    async def hard(self, button, interaction):
-        await self.open_modal(interaction, "🟧", "напряжённо")
-
-    @discord.ui.button(label="🟨 Стабильно", style=discord.ButtonStyle.secondary, custom_id="aktiv_stable")
-    async def stable(self, button, interaction):
-        await self.open_modal(interaction, "🟨", "стабильно")
-
-    @discord.ui.button(label="🟩 Спокойно", style=discord.ButtonStyle.green, custom_id="aktiv_calm")
-    async def calm(self, button, interaction):
-        await self.open_modal(interaction, "🟩", "спокойно")
-
-    @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red, custom_id="aktiv_delete")
-    async def delete(self, button, interaction):
-        if interaction.user.id != self.author_id:
-            return await interaction.response.send_message("❌ Не твой актив", ephemeral=True)
-        await interaction.message.delete()
-
-
-class AktivCreateView(View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="Создать актив", style=discord.ButtonStyle.green, custom_id="create_aktiv")
-    async def create_aktiv(self, button, interaction):
-        if not has_aktiv_access(interaction.user):
-            return await interaction.response.send_message("❌ Нет прав", ephemeral=True)
-        await interaction.response.send_modal(AktivCreateModal())
-
-
 class AktivCreateModal(discord.ui.Modal):
     def __init__(self):
         super().__init__(title="Создание актива")
@@ -170,11 +107,15 @@ class AktivCreateModal(discord.ui.Modal):
         self.location = discord.ui.InputText(label="Локация")
         self.need = discord.ui.InputText(label="Нужно")
         self.voice_id = discord.ui.InputText(label="ID голосового канала")
+        self.state = discord.ui.InputText(label="Состояние (критично/напряжённо/стабильно/спокойно)")
+        self.comment = discord.ui.InputText(label="Комментарий")
 
         self.add_item(self.goal)
         self.add_item(self.location)
         self.add_item(self.need)
         self.add_item(self.voice_id)
+        self.add_item(self.state)
+        self.add_item(self.comment)
 
     async def callback(self, interaction):
         channel_id = get_channel(interaction.guild.id, "aktiv")
@@ -187,15 +128,40 @@ class AktivCreateModal(discord.ui.Modal):
         except:
             return await interaction.response.send_message("❌ неверный ID", ephemeral=True)
 
-        base_text = (
+        state_map = {
+            "критично": "🟥",
+            "напряжённо": "🟧",
+            "стабильно": "🟨",
+            "спокойно": "🟩"
+        }
+
+        state_text = self.state.value.lower()
+        emoji = state_map.get(state_text, "❓")
+
+        text = (
             f":dart: ЦЕЛЬ: {self.goal.value}\n"
             f":round_pushpin: ЛОКАЦИЯ: {self.location.value}\n"
             f":busts_in_silhouette: НУЖНО: {self.need.value}\n"
-            f"🔊 Канал: {voice.mention if voice else 'не найден'}"
+            f"🔊 Канал: {voice.mention if voice else 'не найден'}\n\n"
+            f":package: СОСТОЯНИЕ: {emoji} {self.state.value}\n"
+            f"💬 Комментарий: {self.comment.value}"
         )
 
-        await interaction.channel.send(base_text + "\n\nВыберите состояние ↓", view=AktivView(interaction.user.id, base_text))
+        await interaction.channel.send(text)
         await interaction.response.send_message("✅ Актив создан", ephemeral=True)
+
+
+class AktivCreateView(View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Создать актив", style=discord.ButtonStyle.green, custom_id="create_aktiv")
+    async def create_aktiv(self, button, interaction):
+        if not has_aktiv_access(interaction.user):
+            return await interaction.response.send_message("❌ Нет прав", ephemeral=True)
+
+        await interaction.message.delete()
+        await interaction.response.send_modal(AktivCreateModal())
 
 # ================= OTHER VIEWS =================
 
@@ -213,10 +179,7 @@ class SkladView(View):
         row.time_end = new_end
         row.save()
 
-        await interaction.message.edit(
-            content=f"{row.text}\n⏰ До окончания: <t:{new_end}:R>",
-            view=self
-        )
+        await interaction.message.edit(content=f"{row.text}\n⏰ До окончания: <t:{new_end}:R>", view=self)
 
     @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red, custom_id="sklad_delete")
     async def delete(self, button, interaction):
@@ -254,12 +217,17 @@ class MPFView(View):
 
 # ================= COMMANDS =================
 
-@bot.slash_command(name="aktivpanel", guild_ids=[GUILD_ID])
-async def aktivpanel(ctx):
+@bot.slash_command(name="актив", guild_ids=[GUILD_ID])
+async def aktiv(ctx):
     if not has_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
-    await ctx.send("Панель актива ↓", view=AktivCreateView())
-    await ctx.respond("✅ Панель отправлена", ephemeral=True)
+
+    channel_id = get_channel(ctx.guild.id, "aktiv")
+    if not channel_id or ctx.channel.id != channel_id:
+        return await ctx.respond("❌ не тот канал", ephemeral=True)
+
+    await ctx.send("Нажмите кнопку ↓", view=AktivCreateView())
+    await ctx.respond("✅ Панель создана", ephemeral=True)
 
 
 @bot.slash_command(name="setskladchannel", guild_ids=[GUILD_ID])
@@ -269,7 +237,6 @@ async def setskladchannel(ctx, sklad_channel: discord.TextChannel, notify_channe
 
     set_channel(ctx.guild.id, sklad_channel.id, "sklad")
     set_channel(ctx.guild.id, notify_channel.id, "sklad_notify")
-
     await ctx.respond("✅ каналы установлены", ephemeral=True)
 
 
@@ -308,10 +275,7 @@ async def timer(ctx, название: str, hours: int = 1):
 
     ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=hours)).timestamp())
 
-    msg = await ctx.send(
-        f"👤 {ctx.author.mention}\n📌 {название}\n⏰ <t:{ts}:R>",
-        view=TimerView()
-    )
+    msg = await ctx.send(f"👤 {ctx.author.mention}\n📌 {название}\n⏰ <t:{ts}:R>", view=TimerView())
 
     Timer.create(
         guild_id=ctx.guild.id,
@@ -328,7 +292,6 @@ async def timer(ctx, название: str, hours: int = 1):
 @bot.slash_command(name="склад", guild_ids=[GUILD_ID])
 async def sklad(ctx, гекс: str, регион: str, склад: str, пароль: str):
     channel_id = get_channel(ctx.guild.id, "sklad")
-
     if not channel_id or ctx.channel.id != channel_id:
         return await ctx.respond("❌ не тот канал", ephemeral=True)
 
@@ -360,7 +323,6 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
 @bot.slash_command(name="мпф", guild_ids=[GUILD_ID])
 async def mpf(ctx, что: str, ящиков: int):
     channel_id = get_channel(ctx.guild.id, "mpf")
-
     if not channel_id or ctx.channel.id != channel_id:
         return await ctx.respond("❌ не тот канал", ephemeral=True)
 
@@ -388,7 +350,6 @@ async def on_ready():
 
     load_channels()
 
-    bot.add_view(AktivView(0, ""))
     bot.add_view(AktivCreateView())
     bot.add_view(SkladView())
     bot.add_view(TimerView())
