@@ -228,7 +228,7 @@ class SkladView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Обновить склад", style=discord.ButtonStyle.green)
+    @discord.ui.button(label="Обновить склад", style=discord.ButtonStyle.green, custom_id="sklad_update")
     async def update(self, button, interaction):
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
         if not row:
@@ -243,7 +243,7 @@ class SkladView(View):
             view=self
         )
 
-    @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red, custom_id="sklad_delete")
     async def delete(self, button, interaction):
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
         if not row or interaction.user.id != row.author:
@@ -256,7 +256,7 @@ class TimerView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Удалить таймер", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Удалить таймер", style=discord.ButtonStyle.red, custom_id="timer_delete")
     async def delete(self, button, interaction):
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
         if not row or interaction.user.id != row.author:
@@ -269,7 +269,7 @@ class MPFView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red, custom_id="mpf_delete")
     async def delete(self, button, interaction):
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
         if not row or interaction.user.id != row.author:
