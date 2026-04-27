@@ -106,8 +106,13 @@ class AktivCreateModal(discord.ui.Modal):
         self.goal = discord.ui.InputText(label="Цель")
         self.location = discord.ui.InputText(label="Локация")
         self.need = discord.ui.InputText(label="Нужно")
-        self.voice_id = discord.ui.InputText(label="ID голосового канала")
-        self.state = discord.ui.InputText(label="Состояние (критично/напряжённо/стабильно/спокойно)")
+        self.voice_id = discord.ui.InputText(label="ID voice")
+
+        self.state = discord.ui.InputText(
+            label="Состояние",
+            placeholder="критично / напряжённо / стабильно / спокойно"
+        )
+
         self.comment = discord.ui.InputText(label="Комментарий")
 
         self.add_item(self.goal)
