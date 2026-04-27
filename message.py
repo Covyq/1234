@@ -8,7 +8,7 @@ from peewee import *
 
 # ================= CONFIG =================
 
-GUILD_ID = 419565206335651840
+GUILD_ID = 1278259070666801214
 
 ALLOWED_ROLE_IDS = [
     1420081710510379079,
