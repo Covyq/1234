@@ -210,8 +210,17 @@ class SkladView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-        update = Button(label="Обновить склад", style=discord.ButtonStyle.green)
-        delete = Button(label="Удалить", style=discord.ButtonStyle.red)
+        update = Button(
+            label="Обновить склад",
+            style=discord.ButtonStyle.green,
+            custom_id="sklad_update"
+        )
+
+        delete = Button(
+            label="Удалить",
+            style=discord.ButtonStyle.red,
+            custom_id="sklad_delete"
+        )
 
         update.callback = self.update
         delete.callback = self.delete
@@ -232,10 +241,12 @@ class SkladView(View):
         new_end = int((now + datetime.timedelta(hours=48)).timestamp())
 
         row.time_end = new_end
+        row.last_updated_by = interaction.user.id
+        row.last_updated_at = int(now.timestamp())
         row.save()
 
         await interaction.message.edit(
-            content=f"{row.text}\n⏰ <t:{new_end}:R>",
+            content=f"{row.text}\n⏰ До окончания: <t:{new_end}:R>\n🔄 Обновил: {interaction.user.display_name}",
             view=self
         )
 
@@ -255,9 +266,13 @@ class TimerView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-        btn = Button(label="Удалить таймер", style=discord.ButtonStyle.red)
-        btn.callback = self.delete
+        btn = Button(
+            label="Удалить таймер",
+            style=discord.ButtonStyle.red,
+            custom_id="timer_delete"
+        )
 
+        btn.callback = self.delete
         self.add_item(btn)
 
     async def delete(self, interaction):
@@ -275,12 +290,23 @@ class MPFView(View):
     def __init__(self, show_take=False):
         super().__init__(timeout=None)
 
-        delete = Button(label="Удалить таймер", style=discord.ButtonStyle.red)
-        delete.callback = self.delete
-        self.add_item(delete)
+        delete = Button(
+            label="Удалить таймер",
+            style=discord.ButtonStyle.red,
+            custom_id="mpf_delete"
+        )
 
-        take = Button(label="Забрал заказ", style=discord.ButtonStyle.green, disabled=not show_take)
+        take = Button(
+            label="Забрал заказ",
+            style=discord.ButtonStyle.green,
+            custom_id="mpf_take",
+            disabled=not show_take
+        )
+
+        delete.callback = self.delete
         take.callback = self.take
+
+        self.add_item(delete)
         self.add_item(take)
 
     async def take(self, interaction):
