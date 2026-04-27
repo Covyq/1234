@@ -170,9 +170,6 @@ class AktivView(View):
         super().__init__(timeout=None)
         self.author_id = author_id
 
-    async def interaction_check(self, interaction):
-        return True
-
     @discord.ui.button(label="Удалить активность", style=discord.ButtonStyle.danger)
     async def delete(self, button, interaction):
         if interaction.user.id != self.author_id:
@@ -235,7 +232,6 @@ async def aktivnost(ctx, цель: str, гекс: str, регион: str, кол
         icon_url=ctx.author.display_avatar.url
     )
 
-    # 🔥 жирная цель
     embed.description = f"**{цель}**"
 
     embed.add_field(name="📍 Локация", value=f"{гекс}, {регион}", inline=False)
@@ -253,12 +249,16 @@ async def aktivnost(ctx, цель: str, гекс: str, регион: str, кол
 # ===== ТАЙМЕР =====
 
 @bot.slash_command(name="таймер", guild_ids=[GUILD_ID])
-async def timer(ctx, название: str, hours: int = 1):
+async def timer(ctx, название: str, дни: int = 0, часы: int = 0, минуты: int = 0):
     channel_id = get_channel(ctx.guild.id, "simple")
     if not channel_id or ctx.channel.id != channel_id:
         return await ctx.respond("❌ не тот канал", ephemeral=True)
 
-    end = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=hours)
+    total_seconds = дни*86400 + часы*3600 + минуты*60
+    if total_seconds <= 0:
+        return await ctx.respond("❌ укажи время", ephemeral=True)
+
+    end = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=total_seconds)
     ts = int(end.timestamp())
 
     msg = await ctx.send(
@@ -266,14 +266,7 @@ async def timer(ctx, название: str, hours: int = 1):
         view=TimerView()
     )
 
-    Timer.create(
-        guild_id=ctx.guild.id,
-        channel_id=ctx.channel.id,
-        message_id=msg.id,
-        text=название,
-        time_end=ts,
-        author=ctx.author.id
-    )
+    Timer.create(ctx.guild.id, ctx.channel.id, msg.id, название, ts, ctx.author.id)
 
     await ctx.respond("✅ таймер создан", ephemeral=True)
 
@@ -287,47 +280,36 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
 
     end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=48)).timestamp())
 
-    text = (
-        f"👤 {ctx.author.display_name}\n"
-        f"**Гекс:** {гекс}\n"
-        f"**Регион:** {регион}\n"
-        f"**Склад:** {склад}\n"
-        f"**Пароль:** {пароль}"
-    )
+    text = f"👤 {ctx.author.display_name}\n**Гекс:** {гекс}\n**Регион:** {регион}\n**Склад:** {склад}\n**Пароль:** {пароль}"
 
-    msg = await ctx.send(f"{text}\n⏰ До окончания: <t:{end_ts}:R>", view=SkladView())
+    msg = await ctx.send(f"{text}\n⏰ <t:{end_ts}:R>", view=SkladView())
 
-    Timer.create(
-        guild_id=ctx.guild.id,
-        channel_id=ctx.channel.id,
-        message_id=msg.id,
-        text=text,
-        time_end=end_ts,
-        author=ctx.author.id
-    )
+    Timer.create(ctx.guild.id, ctx.channel.id, msg.id, text, end_ts, ctx.author.id)
 
     await ctx.respond("✅ склад создан", ephemeral=True)
 
 # ===== MPF =====
 
 @bot.slash_command(name="мпф", guild_ids=[GUILD_ID])
-async def mpf(ctx, что: str, ящиков: int):
+async def mpf(ctx, что: str, ящиков: int, дни: int = 0, часы: int = 0, минуты: int = 0):
     channel_id = get_channel(ctx.guild.id, "mpf")
     if not channel_id or ctx.channel.id != channel_id:
         return await ctx.respond("❌ не тот канал", ephemeral=True)
 
-    text = f"👤 {ctx.author.display_name}\n📦 {что}\n📦 Ящиков: {ящиков}"
+    total_seconds = дни*86400 + часы*3600 + минуты*60
+    ts = 0
+    time_text = ""
+
+    if total_seconds > 0:
+        end = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=total_seconds)
+        ts = int(end.timestamp())
+        time_text = f"\n⏰ <t:{ts}:R>"
+
+    text = f"👤 {ctx.author.display_name}\n📦 {что}\n📦 Ящиков: {ящиков}{time_text}"
 
     msg = await ctx.send(text, view=MPFView())
 
-    Timer.create(
-        guild_id=ctx.guild.id,
-        channel_id=ctx.channel.id,
-        message_id=msg.id,
-        text=text,
-        time_end=0,
-        author=ctx.author.id
-    )
+    Timer.create(ctx.guild.id, ctx.channel.id, msg.id, text, ts, ctx.author.id)
 
     await ctx.respond("✅ MPF создан", ephemeral=True)
 
