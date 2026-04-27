@@ -6,7 +6,7 @@ from discord.ext import tasks
 from discord.ui import View, Button
 from peewee import *
 
-# ================= CONFIG =================
+# ================= Конфиг =================
 
 GUILD_ID = 419565206335651840
 
@@ -69,7 +69,7 @@ class Timer(BaseModel):
 db.connect(reuse_if_open=True)
 db.create_tables([ChannelConfig, Timer])
 
-# ================= CHANNELS =================
+# ================= Каналы =================
 
 def load_channels():
     global CHANNEL_CACHE
@@ -115,7 +115,7 @@ def has_access(member):
         any(r.id in ALLOWED_ROLE_IDS for r in member.roles)
     )
 
-# ================= CLEAN =================
+# ================= Очистка =================
 
 def clean_channels():
     for row in ChannelConfig.select():
@@ -123,7 +123,7 @@ def clean_channels():
         if not guild or guild.get_channel_or_thread(row.channel_id) is None:
             row.delete_instance()
 
-# ================= NOTIFICATIONS =================
+# ================= Уведомления =================
 
 async def send_sklad_notification(t):
     guild = bot.get_guild(t.guild_id)
@@ -180,7 +180,7 @@ async def delete_notifications(t, guild):
     t.last_notify_time = None
     t.save()
 
-# ================= VIEWS =================
+# ================= Просмотры =================
 
 class SkladView(View):
     def __init__(self):
@@ -290,7 +290,7 @@ class MPFView(View):
         row.delete_instance()
         await interaction.message.delete()
 
-# ================= LOGIC =================
+# ================= Логика =================
 
 async def process_expired_timer(t):
     guild = bot.get_guild(t.guild_id)
@@ -333,7 +333,7 @@ async def process_expired_timer(t):
         )
         return
 
-# ================= RESTORE =================
+# ================= Восстановление =================
 
 async def restore_messages():
     now = int(datetime.datetime.now(datetime.timezone.utc).timestamp())
@@ -379,7 +379,7 @@ async def restore_messages():
         except:
             print(traceback.format_exc())
 
-# ================= LOOP =================
+# ================= Петля =================
 
 @tasks.loop(seconds=30)
 async def loop():
@@ -416,7 +416,7 @@ async def loop():
         except:
             print(traceback.format_exc())
 
-# ================= EVENTS =================
+# ================= События =================
 
 @bot.event
 async def on_ready():
@@ -445,7 +445,7 @@ async def on_raw_message_delete(payload):
     except:
         print(traceback.format_exc())
 
-# ================= COMMANDS =================
+# ================= Команды =================
 
 @bot.slash_command(name="setskladchannel", guild_ids=[GUILD_ID])
 async def setskladchannel(ctx, sklad_channel: discord.TextChannel, notify_channel: discord.TextChannel):
@@ -594,6 +594,6 @@ async def mpf(ctx, что_поставил: str, ящиков: int, days: int = 
 
     await ctx.followup.send("✅ MPF создан", ephemeral=True)
 
-# ================= RUN =================
+# ================= Запуск =================
 
 bot.run(os.environ.get("DISCORD_BOT_TOKEN"))
