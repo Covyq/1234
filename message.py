@@ -135,8 +135,7 @@ class AktivCreateModal(discord.ui.Modal):
             "спокойно": "🟩"
         }
 
-        state_text = self.state.value.lower()
-        emoji = state_map.get(state_text, "❓")
+        emoji = state_map.get(self.state.value.lower(), "❓")
 
         text = (
             f":dart: ЦЕЛЬ: {self.goal.value}\n"
@@ -160,8 +159,8 @@ class AktivCreateView(View):
         if not has_aktiv_access(interaction.user):
             return await interaction.response.send_message("❌ Нет прав", ephemeral=True)
 
-        await interaction.message.delete()
         await interaction.response.send_modal(AktivCreateModal())
+        await interaction.message.delete()
 
 # ================= OTHER VIEWS =================
 
@@ -179,7 +178,7 @@ class SkladView(View):
         row.time_end = new_end
         row.save()
 
-        await interaction.message.edit(content=f"{row.text}\n⏰ До окончания: <t:{new_end}:R>", view=self)
+        await interaction.message.edit(content=f"{row.text}\n⏰ <t:{new_end}:R>", view=self)
 
     @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red, custom_id="sklad_delete")
     async def delete(self, button, interaction):
@@ -305,7 +304,7 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
         f"**Пароль:** {пароль}"
     )
 
-    msg = await ctx.send(f"{text}\n⏰ До окончания: <t:{end_ts}:R>", view=SkladView())
+    msg = await ctx.send(f"{text}\n⏰ <t:{end_ts}:R>", view=SkladView())
 
     Timer.create(
         guild_id=ctx.guild.id,
