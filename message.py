@@ -57,19 +57,6 @@ class Timer(BaseModel):
     author = BigIntegerField()
     kind = TextField(default="timer")
 
-    boxes = IntegerField(null=True)
-    taken_by = BigIntegerField(null=True)
-
-    last_updated_by = BigIntegerField(null=True)
-    last_updated_at = BigIntegerField(null=True)
-
-    notified_3h = BooleanField(default=False)
-    notified_2h = IntegerField(default=0)
-    notified_1h = IntegerField(default=0)
-    notify_messages = TextField(null=True)
-    last_notify_time = BigIntegerField(null=True)
-
-
 db.connect(reuse_if_open=True)
 db.create_tables([ChannelConfig, Timer])
 
@@ -77,14 +64,7 @@ db.create_tables([ChannelConfig, Timer])
 
 def load_channels():
     global CHANNEL_CACHE
-    CHANNEL_CACHE = {
-        "sklad": {},
-        "simple": {},
-        "mpf": {},
-        "sklad_notify": {},
-        "aktiv": {}
-    }
-
+    CHANNEL_CACHE = {"sklad": {}, "simple": {}, "mpf": {}, "sklad_notify": {}, "aktiv": {}}
     for row in ChannelConfig.select():
         CHANNEL_CACHE.setdefault(row.channel_type, {})
         CHANNEL_CACHE[row.channel_type][row.guild_id] = row.channel_id
@@ -100,11 +80,7 @@ def set_channel(guild_id, channel_id, channel_type):
         row.channel_id = channel_id
         row.save()
     else:
-        ChannelConfig.create(
-            guild_id=guild_id,
-            channel_id=channel_id,
-            channel_type=channel_type
-        )
+        ChannelConfig.create(guild_id=guild_id, channel_id=channel_id, channel_type=channel_type)
 
     CHANNEL_CACHE.setdefault(channel_type, {})[guild_id] = channel_id
 
@@ -133,13 +109,12 @@ class AktivModal(discord.ui.Modal):
         self.comment = discord.ui.InputText(label="Комментарий", required=True)
         self.add_item(self.comment)
 
-    async def callback(self, interaction: discord.Interaction):
+    async def callback(self, interaction):
         new_text = (
             f"{self.view_ref.base_text}\n"
             f":package: СОСТОЯНИЕ: {self.emoji} {self.state}\n"
             f"💬 Комментарий: {self.comment.value}"
         )
-
         await interaction.message.edit(content=new_text, view=self.view_ref)
         await interaction.response.send_message("✅ Обновлено", ephemeral=True)
 
@@ -283,7 +258,6 @@ class MPFView(View):
 async def aktivpanel(ctx):
     if not has_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
-
     await ctx.send("Панель актива ↓", view=AktivCreateView())
     await ctx.respond("✅ Панель отправлена", ephemeral=True)
 
