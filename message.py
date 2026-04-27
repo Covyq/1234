@@ -217,7 +217,7 @@ async def setaktivchat(ctx, channel: discord.TextChannel):
     set_channel(ctx.guild.id, channel.id, "aktiv")
     await ctx.respond("✅ Актив чат установлен", ephemeral=True)
 
-# ===== АКТИВНОСТЬ (УЛУЧШЕНА) =====
+# ===== АКТИВНОСТЬ =====
 
 @bot.slash_command(name="активность", guild_ids=[GUILD_ID])
 async def aktivnost(ctx, цель: str, локация: str, нужно: str, voice: discord.VoiceChannel):
@@ -233,12 +233,16 @@ async def aktivnost(ctx, цель: str, локация: str, нужно: str, vo
         color=discord.Color.blue()
     )
 
+    embed.set_author(
+        name=ctx.author.display_name,
+        icon_url=ctx.author.display_avatar.url
+    )
+
     embed.add_field(name="Цель", value=цель, inline=False)
     embed.add_field(name="Локация", value=локация, inline=True)
     embed.add_field(name="Нужно людей", value=нужно, inline=True)
     embed.add_field(name="Голосовой канал", value=voice.mention, inline=False)
 
-    embed.set_footer(text=f"Создал: {ctx.author.display_name}")
     embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
 
     if ctx.guild.icon:
