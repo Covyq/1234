@@ -214,11 +214,7 @@ class SkladView(View):
         nickname = member.display_name if member else "пользователь"
 
         await interaction.message.edit(
-            content=(
-                f"{row.text}\n"
-                f"⏰ До окончания: <t:{new_end}:R>\n"
-                f"🔄 Обновил склад - {nickname}"
-            ),
+            content=f"{row.text}\n⏰ До окончания: <t:{new_end}:R>\n🔄 Обновил склад - {nickname}",
             view=self
         )
 
@@ -237,10 +233,8 @@ class SkladView(View):
 class TimerView(View):
     def __init__(self):
         super().__init__(timeout=None)
-
         btn = Button(label="Удалить таймер", style=discord.ButtonStyle.red)
         btn.callback = self.delete
-
         self.add_item(btn)
 
     async def delete(self, interaction):
@@ -262,11 +256,7 @@ class MPFView(View):
         delete.callback = self.delete
         self.add_item(delete)
 
-        take = Button(
-            label="Забрал заказ",
-            style=discord.ButtonStyle.green,
-            disabled=not show_take
-        )
+        take = Button(label="Забрал заказ", style=discord.ButtonStyle.green, disabled=not show_take)
         take.callback = self.take
         self.add_item(take)
 
@@ -328,11 +318,17 @@ async def process_expired_timer(t):
         return
 
     if t.kind == "timer":
-        await msg.edit(content=f"{t.text}\n✅ выполнено", view=TimerView())
+        await msg.edit(
+            content=f"👤 <@{t.author}>\n📌 {t.text}\n✅ Статус: выполнено",
+            view=TimerView()
+        )
         return
 
     if t.kind == "mpf":
-        await msg.edit(content=f"{t.text}\n✅ готово", view=MPFView(True))
+        await msg.edit(
+            content=f"{t.text}\n✅ Статус: готово",
+            view=MPFView(True)
+        )
         return
 
 # ================= RESTORE =================
@@ -361,11 +357,22 @@ async def restore_messages():
                 continue
 
             if t.kind == "sklad":
-                await msg.edit(view=SkladView())
+                await msg.edit(
+                    content=f"{t.text}\n⏰ До окончания: <t:{t.time_end}:R>",
+                    view=SkladView()
+                )
+
             elif t.kind == "timer":
-                await msg.edit(view=TimerView())
+                await msg.edit(
+                    content=f"👤 <@{t.author}>\n📌 {t.text}\n⏰ <t:{t.time_end}:R>",
+                    view=TimerView()
+                )
+
             elif t.kind == "mpf":
-                await msg.edit(view=MPFView(False))
+                await msg.edit(
+                    content=t.text,
+                    view=MPFView(False)
+                )
 
         except:
             print(traceback.format_exc())
@@ -407,7 +414,7 @@ async def loop():
         except:
             print(traceback.format_exc())
 
-# ================= READY =================
+# ================= EVENTS =================
 
 @bot.event
 async def on_ready():
@@ -424,6 +431,17 @@ async def on_ready():
 
     if not loop.is_running():
         loop.start()
+
+
+@bot.event
+async def on_raw_message_delete(payload):
+    try:
+        Timer.delete().where(
+            (Timer.message_id == payload.message_id) &
+            (Timer.channel_id == payload.channel_id)
+        ).execute()
+    except:
+        print(traceback.format_exc())
 
 # ================= COMMANDS =================
 
