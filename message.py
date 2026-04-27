@@ -220,7 +220,7 @@ async def setaktivchat(ctx, channel: discord.TextChannel):
 # ===== АКТИВНОСТЬ =====
 
 @bot.slash_command(name="активность", guild_ids=[GUILD_ID])
-async def aktivnost(ctx, цель: str, локация: str, нужно: str, voice: discord.VoiceChannel):
+async def aktivnost(ctx, цель: str, гекс: str, регион: str, количество_людей: int, voice: discord.VoiceChannel):
     if not has_aktiv_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
 
@@ -238,11 +238,10 @@ async def aktivnost(ctx, цель: str, локация: str, нужно: str, vo
         icon_url=ctx.author.display_avatar.url
     )
 
-    embed.add_field(name="Цель", value=цель, inline=False)
-    embed.add_field(name="Локация", value=локация, inline=True)
-    embed.add_field(name="Нужно людей", value=нужно, inline=True)
+    embed.add_field(name="🎯 Цель", value=f"*{цель}*", inline=False)
+    embed.add_field(name="📍 Локация", value=f"Гекс: {гекс}\nРегион: {регион}", inline=False)
+    embed.add_field(name="👥 Нужно людей", value=f"*{количество_людей}*", inline=False)
 
-    # 👇 канал внизу без подписи
     embed.description = f"🔊 {voice.mention}"
 
     embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
