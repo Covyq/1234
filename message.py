@@ -62,13 +62,7 @@ db.create_tables([ChannelConfig, Timer])
 
 def load_channels():
     global CHANNEL_CACHE
-    CHANNEL_CACHE = {
-        "sklad": {},
-        "simple": {},
-        "mpf": {},
-        "sklad_notify": {},
-        "aktiv": {}
-    }
+    CHANNEL_CACHE = {"sklad": {}, "simple": {}, "mpf": {}, "sklad_notify": {}, "aktiv": {}}
     for row in ChannelConfig.select():
         CHANNEL_CACHE[row.channel_type][row.guild_id] = row.channel_id
 
@@ -81,11 +75,8 @@ def set_channel(guild_id, channel_id, channel_type):
         row.channel_id = channel_id
         row.save()
     else:
-        ChannelConfig.create(
-            guild_id=guild_id,
-            channel_id=channel_id,
-            channel_type=channel_type
-        )
+        ChannelConfig.create(guild_id=guild_id, channel_id=channel_id, channel_type=channel_type)
+
     CHANNEL_CACHE[channel_type][guild_id] = channel_id
 
 def get_channel(guild_id, channel_type):
@@ -94,16 +85,10 @@ def get_channel(guild_id, channel_type):
 # ================= PERMS =================
 
 def has_access(member):
-    return (
-        member.guild_permissions.administrator or
-        any(r.id in ALLOWED_ROLE_IDS for r in member.roles)
-    )
+    return member.guild_permissions.administrator or any(r.id in ALLOWED_ROLE_IDS for r in member.roles)
 
 def has_aktiv_access(member):
-    return (
-        member.guild_permissions.administrator or
-        any(r.id in AKTIV_ROLE_IDS for r in member.roles)
-    )
+    return member.guild_permissions.administrator or any(r.id in AKTIV_ROLE_IDS for r in member.roles)
 
 # ================= VIEWS =================
 
@@ -114,6 +99,7 @@ class SkladView(View):
     @discord.ui.button(label="Обновить склад", style=discord.ButtonStyle.green)
     async def update(self, button, interaction):
         await interaction.response.defer()
+
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
         if not row:
             return
@@ -155,7 +141,7 @@ class MPFView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Удалить таймер", style=discord.ButtonStyle.red)
+    @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red)
     async def delete(self, button, interaction):
         await interaction.response.defer()
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
@@ -187,7 +173,6 @@ async def setskladchannel(ctx, sklad_channel: discord.TextChannel, notify_channe
 
     set_channel(ctx.guild.id, sklad_channel.id, "sklad")
     set_channel(ctx.guild.id, notify_channel.id, "sklad_notify")
-
     await ctx.respond("✅ каналы установлены", ephemeral=True)
 
 @bot.slash_command(name="setsimpletimer", guild_ids=[GUILD_ID])
@@ -198,13 +183,19 @@ async def setsimpletimer(ctx, channel: discord.TextChannel):
     set_channel(ctx.guild.id, channel.id, "simple")
     await ctx.respond("✅ таймер установлен", ephemeral=True)
 
+# 🔥 setmpf теперь принимает ID (канал или ветка)
 @bot.slash_command(name="setmpf", guild_ids=[GUILD_ID])
-async def setmpf(ctx, channel: discord.TextChannel):
+async def setmpf(ctx, channel_id: str):
     if not has_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
 
-    set_channel(ctx.guild.id, channel.id, "mpf")
-    await ctx.respond("✅ MPF установлен", ephemeral=True)
+    try:
+        channel_id = int(channel_id)
+    except:
+        return await ctx.respond("❌ Неверный ID", ephemeral=True)
+
+    set_channel(ctx.guild.id, channel_id, "mpf")
+    await ctx.respond("✅ MPF канал/ветка установлена", ephemeral=True)
 
 @bot.slash_command(name="setaktivchat", guild_ids=[GUILD_ID])
 async def setaktivchat(ctx, channel: discord.TextChannel):
@@ -226,22 +217,11 @@ async def aktivnost(ctx, цель: str, гекс: str, регион: str, кол
         return await ctx.respond("❌ не тот канал", ephemeral=True)
 
     embed = discord.Embed(color=discord.Color.blue())
-
-    embed.set_author(
-        name=ctx.author.display_name,
-        icon_url=ctx.author.display_avatar.url
-    )
-
+    embed.set_author(name=ctx.author.display_name, icon_url=ctx.author.display_avatar.url)
     embed.description = f"**{цель}**"
-
     embed.add_field(name="📍 Локация", value=f"{гекс}, {регион}", inline=False)
     embed.add_field(name="👥 Нужно людей", value=f"{количество_людей}", inline=False)
     embed.add_field(name="", value=f"🔊 {voice.mention}", inline=False)
-
-    embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
-
-    if ctx.guild.icon:
-        embed.set_thumbnail(url=ctx.guild.icon.url)
 
     await ctx.send(embed=embed, view=AktivView(ctx.author.id))
     await ctx.respond("✅ Активность создана", ephemeral=True)
@@ -250,51 +230,51 @@ async def aktivnost(ctx, цель: str, гекс: str, регион: str, кол
 
 @bot.slash_command(name="таймер", guild_ids=[GUILD_ID])
 async def timer(ctx, название: str, дни: int = 0, часы: int = 0, минуты: int = 0):
+    await ctx.defer(ephemeral=True)
+
     channel_id = get_channel(ctx.guild.id, "simple")
     if not channel_id or ctx.channel.id != channel_id:
-        return await ctx.respond("❌ не тот канал", ephemeral=True)
+        return await ctx.followup.send("❌ не тот канал", ephemeral=True)
 
     total_seconds = дни*86400 + часы*3600 + минуты*60
     if total_seconds <= 0:
-        return await ctx.respond("❌ укажи время", ephemeral=True)
+        return await ctx.followup.send("❌ укажи время", ephemeral=True)
 
     end = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=total_seconds)
     ts = int(end.timestamp())
 
-    msg = await ctx.send(
-        f"👤 {ctx.author.mention}\n📌 {название}\n⏰ <t:{ts}:R>",
-        view=TimerView()
-    )
+    msg = await ctx.channel.send(f"👤 {ctx.author.mention}\n📌 {название}\n⏰ <t:{ts}:R>", view=TimerView())
 
     Timer.create(ctx.guild.id, ctx.channel.id, msg.id, название, ts, ctx.author.id)
-
-    await ctx.respond("✅ таймер создан", ephemeral=True)
+    await ctx.followup.send("✅ таймер создан", ephemeral=True)
 
 # ===== СКЛАД =====
 
 @bot.slash_command(name="склад", guild_ids=[GUILD_ID])
 async def sklad(ctx, гекс: str, регион: str, склад: str, пароль: str):
+    await ctx.defer(ephemeral=True)
+
     channel_id = get_channel(ctx.guild.id, "sklad")
     if not channel_id or ctx.channel.id != channel_id:
-        return await ctx.respond("❌ не тот канал", ephemeral=True)
+        return await ctx.followup.send("❌ не тот канал", ephemeral=True)
 
     end_ts = int((datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=48)).timestamp())
 
     text = f"👤 {ctx.author.display_name}\n**Гекс:** {гекс}\n**Регион:** {регион}\n**Склад:** {склад}\n**Пароль:** {пароль}"
-
-    msg = await ctx.send(f"{text}\n⏰ <t:{end_ts}:R>", view=SkladView())
+    msg = await ctx.channel.send(f"{text}\n⏰ <t:{end_ts}:R>", view=SkladView())
 
     Timer.create(ctx.guild.id, ctx.channel.id, msg.id, text, end_ts, ctx.author.id)
-
-    await ctx.respond("✅ склад создан", ephemeral=True)
+    await ctx.followup.send("✅ склад создан", ephemeral=True)
 
 # ===== MPF =====
 
 @bot.slash_command(name="мпф", guild_ids=[GUILD_ID])
 async def mpf(ctx, что: str, ящиков: int, дни: int = 0, часы: int = 0, минуты: int = 0):
+    await ctx.defer(ephemeral=True)
+
     channel_id = get_channel(ctx.guild.id, "mpf")
     if not channel_id or ctx.channel.id != channel_id:
-        return await ctx.respond("❌ не тот канал", ephemeral=True)
+        return await ctx.followup.send("❌ не тот канал", ephemeral=True)
 
     total_seconds = дни*86400 + часы*3600 + минуты*60
     ts = 0
@@ -306,12 +286,10 @@ async def mpf(ctx, что: str, ящиков: int, дни: int = 0, часы: in
         time_text = f"\n⏰ <t:{ts}:R>"
 
     text = f"👤 {ctx.author.display_name}\n📦 {что}\n📦 Ящиков: {ящиков}{time_text}"
-
-    msg = await ctx.send(text, view=MPFView())
+    msg = await ctx.channel.send(text, view=MPFView())
 
     Timer.create(ctx.guild.id, ctx.channel.id, msg.id, text, ts, ctx.author.id)
-
-    await ctx.respond("✅ MPF создан", ephemeral=True)
+    await ctx.followup.send("✅ MPF создан", ephemeral=True)
 
 # ================= START =================
 
