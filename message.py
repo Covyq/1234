@@ -165,45 +165,13 @@ class MPFView(View):
         row.delete_instance()
         await interaction.message.delete()
 
-# ===== АКТИВНОСТЬ VIEW =====
-
 class AktivView(View):
-    def __init__(self, author_id, voice_channel_id):
+    def __init__(self, author_id):
         super().__init__(timeout=None)
         self.author_id = author_id
-        self.voice_channel_id = voice_channel_id
 
     async def interaction_check(self, interaction):
         return True
-
-    @discord.ui.button(label="🔊 Подключиться", style=discord.ButtonStyle.success)
-    async def join(self, button, interaction):
-        channel = interaction.guild.get_channel(self.voice_channel_id)
-
-        if not channel:
-            return await interaction.response.send_message("❌ Канал не найден", ephemeral=True)
-
-        if interaction.user.voice and interaction.user.voice.channel:
-            try:
-                await interaction.user.move_to(channel)
-                return await interaction.response.send_message(
-                    f"✅ Перемещён в {channel.mention}",
-                    ephemeral=True
-                )
-            except:
-                pass
-
-        try:
-            invite = await channel.create_invite(max_age=300, max_uses=1)
-            await interaction.response.send_message(
-                f"🔗 Подключиться: {invite.url}",
-                ephemeral=True
-            )
-        except:
-            await interaction.response.send_message(
-                f"👉 Перейди вручную: {channel.mention}",
-                ephemeral=True
-            )
 
     @discord.ui.button(label="Удалить активность", style=discord.ButtonStyle.danger)
     async def delete(self, button, interaction):
@@ -273,14 +241,15 @@ async def aktivnost(ctx, цель: str, локация: str, нужно: str, vo
     embed.add_field(name="Цель", value=цель, inline=False)
     embed.add_field(name="Локация", value=локация, inline=True)
     embed.add_field(name="Нужно людей", value=нужно, inline=True)
-    embed.add_field(name="Голосовой канал", value=voice.mention, inline=False)
+
+    embed.add_field(name="🔊 Подключение", value=voice.mention, inline=False)
 
     embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
 
     if ctx.guild.icon:
         embed.set_thumbnail(url=ctx.guild.icon.url)
 
-    await ctx.send(embed=embed, view=AktivView(ctx.author.id, voice.id))
+    await ctx.send(embed=embed, view=AktivView(ctx.author.id))
     await ctx.respond("✅ Активность создана", ephemeral=True)
 
 # ===== ТАЙМЕР =====
