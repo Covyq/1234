@@ -129,57 +129,58 @@ async def on_raw_message_delete(payload):
 # ================= NOTIFICATIONS =================
 
 async def send_sklad_notification(t):
-    guild = await get_guild_safe(t.guild_id)
-    if not guild:
-        return
-
-    notify_channel_id = get_channel(t.guild_id, "sklad_notify")
-    if not notify_channel_id:
-        return
-
-    channel = await get_channel_safe(guild, notify_channel_id)
-    if not channel:
-        return
-
     try:
-        sklad_name = t.text.split("**Склад:** ")[1].splitlines()[0]
-    except:
-        sklad_name = "неизвестно"
+        guild = await get_guild_safe(t.guild_id)
+        notify_channel_id = get_channel(t.guild_id, "sklad_notify")
+        if not notify_channel_id:
+            return
 
-    msg = await channel.send(f"⚠️ Склад **{sklad_name}** скоро сгорит!")
+        channel = await get_channel_safe(guild, notify_channel_id)
 
-    ids = t.notify_messages.split(",") if t.notify_messages else []
-    ids.append(str(msg.id))
+        try:
+            sklad_name = t.text.split("**Склад:** ")[1].splitlines()[0]
+        except:
+            sklad_name = "неизвестно"
 
-    t.notify_messages = ",".join(ids)
-    t.save()
+        msg = await channel.send(f"⚠️ Склад **{sklad_name}** скоро сгорит!")
+
+        ids = t.notify_messages.split(",") if t.notify_messages else []
+        ids.append(str(msg.id))
+
+        t.notify_messages = ",".join(ids)
+        t.save()
+
+    except Exception as e:
+        print(f"[NOTIFY ERROR] {e}")
 
 
 async def delete_notifications(t, guild):
-    if not t.notify_messages:
-        return
+    try:
+        if not t.notify_messages:
+            return
 
-    notify_channel_id = get_channel(t.guild_id, "sklad_notify")
-    if not notify_channel_id:
-        return
+        notify_channel_id = get_channel(t.guild_id, "sklad_notify")
+        if not notify_channel_id:
+            return
 
-    channel = await get_channel_safe(guild, notify_channel_id)
-    if not channel:
-        return
+        channel = await get_channel_safe(guild, notify_channel_id)
 
-    for msg_id in t.notify_messages.split(","):
-        try:
-            msg = await channel.fetch_message(int(msg_id))
-            await msg.delete()
-        except:
-            pass
+        for msg_id in t.notify_messages.split(","):
+            try:
+                msg = await channel.fetch_message(int(msg_id))
+                await msg.delete()
+            except:
+                pass
 
-    t.notify_messages = None
-    t.notified_3h = False
-    t.notified_2h = 0
-    t.notified_1h = 0
-    t.last_notify_time = None
-    t.save()
+        t.notify_messages = None
+        t.notified_3h = False
+        t.notified_2h = 0
+        t.notified_1h = 0
+        t.last_notify_time = None
+        t.save()
+
+    except Exception as e:
+        print(f"[DELETE NOTIFY ERROR] {e}")
 
 
 # ================= VIEWS =================
@@ -202,12 +203,10 @@ class SkladView(View):
         new_end = int((now + datetime.timedelta(hours=48)).timestamp())
 
         row.time_end = new_end
-        row.last_updated_by = interaction.user.id
-        row.last_updated_at = int(now.timestamp())
         row.save()
 
         await interaction.message.edit(
-            content=f"{row.text}\n⏰ <t:{new_end}:R>\n🔄 {interaction.user.display_name}",
+            content=f"{row.text}\n⏰ <t:{new_end}:R>",
             view=self
         )
 
@@ -261,7 +260,7 @@ class MPFView(View):
 
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
         if not row or row.taken_by:
-            return await interaction.followup.send("❌ Уже забрали", ephemeral=True)
+            return
 
         row.taken_by = interaction.user.id
         row.save()
@@ -279,8 +278,8 @@ async def process_expired_timer(t):
         guild = await get_guild_safe(t.guild_id)
         channel = await get_channel_safe(guild, t.channel_id)
         msg = await channel.fetch_message(t.message_id)
-    except:
-        t.delete_instance()
+    except Exception as e:
+        print(f"[EXPIRE ERROR] {e}")
         return
 
     if t.kind == "sklad":
@@ -317,8 +316,9 @@ async def restore_messages():
             elif t.kind == "mpf":
                 await msg.edit(view=MPFView())
 
-        except:
-            t.delete_instance()
+        except Exception as e:
+            print(f"[RESTORE ERROR] {e}")
+            continue
 
 
 # ================= LOOP =================
@@ -357,7 +357,6 @@ async def loop():
 
         except Exception as e:
             print(f"[LOOP ERROR] {e}")
-            print(traceback.format_exc())
 
 
 # ================= READY =================
