@@ -111,7 +111,7 @@ class SkladView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Обновить склад", style=discord.ButtonStyle.green, custom_id="sklad_update")
+    @discord.ui.button(label="Обновить склад", style=discord.ButtonStyle.green)
     async def update(self, button, interaction):
         await interaction.response.defer()
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
@@ -127,7 +127,7 @@ class SkladView(View):
             view=self
         )
 
-    @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red, custom_id="sklad_delete")
+    @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red)
     async def delete(self, button, interaction):
         await interaction.response.defer()
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
@@ -141,7 +141,7 @@ class TimerView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Удалить таймер", style=discord.ButtonStyle.red, custom_id="timer_delete")
+    @discord.ui.button(label="Удалить таймер", style=discord.ButtonStyle.red)
     async def delete(self, button, interaction):
         await interaction.response.defer()
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
@@ -155,7 +155,7 @@ class MPFView(View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="Удалить таймер", style=discord.ButtonStyle.red, custom_id="mpf_delete")
+    @discord.ui.button(label="Удалить таймер", style=discord.ButtonStyle.red)
     async def delete(self, button, interaction):
         await interaction.response.defer()
         row = Timer.get_or_none(Timer.message_id == interaction.message.id)
@@ -176,7 +176,7 @@ class AktivView(View):
             return False
         return True
 
-    @discord.ui.button(label="Удалить активность", style=discord.ButtonStyle.danger, custom_id="aktiv_delete")
+    @discord.ui.button(label="Удалить активность", style=discord.ButtonStyle.danger)
     async def delete(self, button, interaction):
         await interaction.response.defer()
         await interaction.message.delete()
@@ -217,10 +217,10 @@ async def setaktivchat(ctx, channel: discord.TextChannel):
     set_channel(ctx.guild.id, channel.id, "aktiv")
     await ctx.respond("✅ Актив чат установлен", ephemeral=True)
 
-# ===== АКТИВ =====
+# ===== АКТИВНОСТЬ =====
 
-@bot.slash_command(name="актив", guild_ids=[GUILD_ID])
-async def aktiv(ctx, цель: str, локация: str, нужно: str, voice: discord.VoiceChannel):
+@bot.slash_command(name="активность", guild_ids=[GUILD_ID])
+async def aktivnost(ctx, цель: str, локация: str, нужно: str, voice: discord.VoiceChannel):
     if not has_aktiv_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
 
@@ -237,7 +237,7 @@ async def aktiv(ctx, цель: str, локация: str, нужно: str, voice:
     )
 
     await ctx.send(text, view=AktivView(ctx.author.id))
-    await ctx.respond("✅ Актив создан", ephemeral=True)
+    await ctx.respond("✅ Активность создана", ephemeral=True)
 
 # ===== ТАЙМЕР =====
 
@@ -326,10 +326,5 @@ async def mpf(ctx, что: str, ящиков: int):
 async def on_ready():
     print(f"Bot online {bot.user}")
     load_channels()
-
-    bot.add_view(SkladView())
-    bot.add_view(TimerView())
-    bot.add_view(MPFView())
-    bot.add_view(AktivView(0))
 
 bot.run(os.environ.get("DISCORD_BOT_TOKEN"))
