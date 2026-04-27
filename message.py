@@ -228,21 +228,19 @@ async def aktivnost(ctx, цель: str, гекс: str, регион: str, кол
     if not channel_id or ctx.channel.id != channel_id:
         return await ctx.respond("❌ не тот канал", ephemeral=True)
 
-    embed = discord.Embed(
-        title="Цель активности",
-        color=discord.Color.blue()
-    )
+    embed = discord.Embed(color=discord.Color.blue())
 
     embed.set_author(
         name=ctx.author.display_name,
         icon_url=ctx.author.display_avatar.url
     )
 
-    embed.add_field(name="🎯 Цель", value=f"*{цель}*", inline=False)
-    embed.add_field(name="📍 Локация", value=f"Гекс: {гекс}\nРегион: {регион}", inline=False)
-    embed.add_field(name="👥 Нужно людей", value=f"*{количество_людей}*", inline=False)
+    # 🔥 жирная цель
+    embed.description = f"**{цель}**"
 
-    embed.description = f"🔊 {voice.mention}"
+    embed.add_field(name="📍 Локация", value=f"{гекс}, {регион}", inline=False)
+    embed.add_field(name="👥 Нужно людей", value=f"{количество_людей}", inline=False)
+    embed.add_field(name="", value=f"🔊 {voice.mention}", inline=False)
 
     embed.timestamp = datetime.datetime.now(datetime.timezone.utc)
 
