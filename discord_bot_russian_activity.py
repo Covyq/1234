@@ -11,7 +11,7 @@ from peewee import *
 # =========================
 # НАСТРОЙКИ
 # =========================
-GUILD_ID = 1494712012314509372
+GUILD_ID = 419565206335651840
 
 # Роли, которым доступны команды настройки бота и удаление активностей
 ALLOWED_ROLE_IDS = [
@@ -152,20 +152,20 @@ def clean_channels():
 # =========================
 # EMBED АКТИВНОСТИ
 # =========================
-def build_activity_embed(author, title, location, need_people, voice_channel_id, created_at):
+def build_activity_embed(author, title, hex_value, region, need_people, voice_channel_id, created_at):
     embed = discord.Embed(
         title=f"📌 Активность: {title}",
         color=discord.Color.green(),
-        timestamp=datetime.datetime.fromtimestamp(created_at, tz=datetime.timezone.utc),
     )
 
-    embed.add_field(name="👤 Создал", value=author.mention, inline=False)
-    embed.add_field(name="📍 Локация", value=location, inline=False)
+    embed.add_field(name="📍 Гекс", value=hex_value, inline=True)
+    embed.add_field(name="🌍 Регион", value=region, inline=True)
     embed.add_field(name="👥 Нужно людей", value=need_people, inline=False)
     embed.add_field(name="🔊 Голосовой канал", value=f"<#{voice_channel_id}>", inline=False)
+    embed.add_field(name="👤 Создатель активности", value=author.mention, inline=False)
     embed.add_field(
         name="🕒 Время создания",
-        value=f"<t:{created_at}:F>\n<t:{created_at}:R>",
+        value=f"<t:{created_at}:f>",
         inline=False,
     )
 
@@ -174,7 +174,6 @@ def build_activity_embed(author, title, location, need_people, voice_channel_id,
 
     embed.set_footer(text="Активность")
     return embed
-
 
 # =========================
 # КНОПКИ
@@ -683,7 +682,8 @@ async def мпф(
 async def активность(
     ctx,
     название_активности: str,
-    локация: str,
+    гекс: str,
+    регион: str,
     нужно_людей: str,
     голосовой_канал: discord.VoiceChannel,
 ):
@@ -701,7 +701,8 @@ async def активность(
     embed = build_activity_embed(
         author=ctx.author,
         title=название_активности,
-        location=локация,
+        hex_value=гекс,
+        region=регион,
         need_people=нужно_людей,
         voice_channel_id=голосовой_канал.id,
         created_at=created_at,
@@ -715,7 +716,7 @@ async def активность(
         message_id=msg.id,
         author=ctx.author.id,
         title=название_активности,
-        location=локация,
+        location=f"Гекс: {гекс}\nРегион: {регион}",
         need_people=нужно_людей,
         voice_channel_id=голосовой_канал.id,
         created_at=created_at,
