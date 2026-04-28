@@ -125,27 +125,37 @@ async def schedule_sklad_notifications(timer_row, channel):
         tasks.append(task)
 
     sklad_name = timer_row.text.split("**Склад:**")[-1].split("\n")[0].strip()
-
     base_text = f"@склад\nСклад {sklad_name} скоро сгорит! Пожалуйста обновите его!"
 
-    # 3 часа
     t3 = end - 10800
     if t3 > now:
         add(t3 - now, base_text)
 
-    # 2 часа
     for i in range(2):
         t = end - 7200 + i * 1800
         if t > now:
             add(t - now, base_text + "!!!")
 
-    # 1 час
     for i in range(6):
         t = end - 3600 + i * 600
         if t > now:
             add(t - now, base_text + "!!!")
 
     NOTIFY_TASKS[message_id] = tasks
+
+# ================= MPF TIMER =================
+
+async def enable_mpf_button(message, view, delay):
+    await asyncio.sleep(delay)
+
+    for item in view.children:
+        if item.custom_id == "mpf_claim":
+            item.disabled = False
+
+    try:
+        await message.edit(view=view)
+    except:
+        pass
 
 # ================= VIEWS =================
 
@@ -207,8 +217,26 @@ class TimerView(View):
         await interaction.message.delete()
 
 class MPFView(View):
-    def __init__(self):
+    def __init__(self, message_id=0, end_time=0):
         super().__init__(timeout=None)
+        self.message_id = message_id
+        self.end_time = end_time
+        self.claimed = False
+
+    @discord.ui.button(label="Забрал заказ", style=discord.ButtonStyle.green, custom_id="mpf_claim", disabled=True)
+    async def claim(self, button, interaction):
+        if self.claimed:
+            return await interaction.response.send_message("❌ Уже забрали", ephemeral=True)
+
+        row = Timer.get_or_none(Timer.message_id == interaction.message.id)
+        if not row:
+            return
+
+        self.claimed = True
+        button.disabled = True
+
+        text = interaction.message.content + f"\n✅ Забрал заказ: {interaction.user.display_name}"
+        await interaction.response.edit_message(content=text, view=self)
 
     @discord.ui.button(label="Удалить", style=discord.ButtonStyle.red, custom_id="mpf_delete")
     async def delete(self, button, interaction):
@@ -243,7 +271,6 @@ async def setskladchannel(ctx, sklad_channel: discord.TextChannel, notify_channe
 
     set_channel(ctx.guild.id, sklad_channel.id, "sklad")
     set_channel(ctx.guild.id, notify_channel.id, "sklad_notify")
-
     await ctx.respond("✅ каналы установлены", ephemeral=True)
 
 @bot.slash_command(name="setsimpletimer", guild_ids=[GUILD_ID])
@@ -366,25 +393,46 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
 # ===== MPF =====
 
 @bot.slash_command(name="мпф", guild_ids=[GUILD_ID])
-async def mpf(ctx, что: str, ящиков: int):
+async def mpf(ctx, что: str, ящиков: int, дни: int = 0, часы: int = 0, минуты: int = 0):
     await ctx.defer(ephemeral=True)
 
     channel_id = get_channel(ctx.guild.id, "mpf")
     if not channel_id or ctx.channel.id != channel_id:
         return await ctx.followup.send("❌ не тот канал", ephemeral=True)
 
-    text = f"👤 {ctx.author.display_name}\n📦 {что}\n📦 Ящиков: {ящиков}"
+    total = дни*86400 + часы*3600 + минуты*60
 
-    msg = await ctx.channel.send(text, view=MPFView())
+    end_ts = 0
+    time_text = ""
+
+    if total > 0:
+        end = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(seconds=total)
+        end_ts = int(end.timestamp())
+        time_text = f"\n⏰ <t:{end_ts}:R>"
+
+    text = f"👤 {ctx.author.display_name}\n📦 {что}\n📦 Ящиков: {ящиков}{time_text}"
+
+    view = MPFView(0, end_ts)
+    msg = await ctx.channel.send(text, view=view)
+
+    view.message_id = msg.id
 
     Timer.create(
         guild_id=ctx.guild.id,
         channel_id=ctx.channel.id,
         message_id=msg.id,
         text=text,
-        time_end=0,
+        time_end=end_ts,
         author=ctx.author.id
     )
+
+    if total > 0:
+        bot.loop.create_task(enable_mpf_button(msg, view, total))
+    else:
+        for item in view.children:
+            if item.custom_id == "mpf_claim":
+                item.disabled = False
+        await msg.edit(view=view)
 
     await ctx.followup.send("✅ MPF создан", ephemeral=True)
 
