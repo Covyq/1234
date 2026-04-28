@@ -148,12 +148,24 @@ async def schedule_sklad_notifications(timer_row, channel):
 async def enable_mpf_button(message, view, delay):
     await asyncio.sleep(delay)
 
+    # включаем кнопку
     for item in view.children:
         if item.custom_id == "mpf_claim":
             item.disabled = False
 
     try:
-        await message.edit(view=view)
+        content = message.content
+
+        # удаляем строку таймера
+        lines = content.split("\n")
+        lines = [line for line in lines if not line.startswith("⏰")]
+
+        # добавляем статус
+        lines.append("✅ Заказ готов")
+
+        new_content = "\n".join(lines)
+
+        await message.edit(content=new_content, view=view)
     except:
         pass
 
