@@ -253,15 +253,35 @@ class AktivView(View):
 
 # ================= COMMANDS =================
 
+# 🔧 ИЗМЕНЕНА ТОЛЬКО ЭТА КОМАНДА
 @bot.slash_command(name="setmpf", guild_ids=[GUILD_ID])
-async def setmpf(ctx, channel: Union[discord.TextChannel, discord.Thread]):
+async def setmpf(ctx, channel: Union[discord.TextChannel, discord.Thread, str]):
     if not has_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
-    set_channel(ctx.guild.id, channel.id, "mpf")
-    t = "ветка" if isinstance(channel, discord.Thread) else "канал"
+
+    target_channel = None
+
+    if isinstance(channel, str):
+        try:
+            ch_id = int(channel)
+            target_channel = bot.get_channel(ch_id)
+            if not target_channel:
+                try:
+                    target_channel = await bot.fetch_channel(ch_id)
+                except:
+                    pass
+        except:
+            return await ctx.respond("❌ Неверный ID", ephemeral=True)
+    else:
+        target_channel = channel
+
+    if not target_channel:
+        return await ctx.respond("❌ Канал или ветка не найдены", ephemeral=True)
+
+    set_channel(ctx.guild.id, target_channel.id, "mpf")
+    t = "ветка" if isinstance(target_channel, discord.Thread) else "канал"
     await ctx.respond(f"✅ MPF {t} установлен", ephemeral=True)
 
-# 🔥 ОБНОВЛЕННАЯ
 @bot.slash_command(name="setsimpletimer", guild_ids=[GUILD_ID])
 async def setsimpletimer(ctx, channel: Union[discord.TextChannel, discord.Thread, str]):
     if not has_access(ctx.author):
