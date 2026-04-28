@@ -7,6 +7,7 @@ from peewee import *
 from typing import Union
 
 # ================= CONFIG =================
+
 GUILD_ID = 1494712012314509372
 
 ALLOWED_ROLE_IDS = [
@@ -32,6 +33,7 @@ CHANNEL_CACHE = {"sklad": {}, "simple": {}, "mpf": {}, "sklad_notify": {}, "akti
 NOTIFY_TASKS = {}
 
 # ================= DB =================
+
 class BaseModel(Model):
     class Meta:
         database = db
@@ -54,6 +56,7 @@ db.connect(reuse_if_open=True)
 db.create_tables([ChannelConfig, Timer])
 
 # ================= CHANNELS =================
+
 def load_channels():
     global CHANNEL_CACHE
     CHANNEL_CACHE = {"sklad": {}, "simple": {}, "mpf": {}, "sklad_notify": {}, "aktiv": {}}
@@ -80,6 +83,7 @@ def get_channel(guild_id, channel_type):
     return CHANNEL_CACHE.get(channel_type, {}).get(guild_id)
 
 # ================= PERMS =================
+
 def has_access(member):
     return member.guild_permissions.administrator or any(r.id in ALLOWED_ROLE_IDS for r in member.roles)
 
@@ -87,6 +91,7 @@ def has_aktiv_access(member):
     return member.guild_permissions.administrator or any(r.id in AKTIV_ROLE_IDS for r in member.roles)
 
 # ================= УВЕДОМЛЕНИЯ СКЛАДА =================
+
 def cancel_notifications(message_id):
     tasks = NOTIFY_TASKS.pop(message_id, [])
     for task in tasks:
@@ -132,23 +137,22 @@ async def schedule_sklad_notifications(timer_row, channel):
     NOTIFY_TASKS[message_id] = tasks
 
 # ================= MPF TIMER =================
+
 async def enable_mpf_button(message, view, delay):
     await asyncio.sleep(delay)
-
     for item in view.children:
         if item.custom_id == "mpf_claim":
             item.disabled = False
-
     try:
         content = message.content
-        lines = content.split("\n")
-        lines = [line for line in lines if not line.startswith("⏰")]
+        lines = [l for l in content.split("\n") if not l.startswith("⏰")]
         lines.append("✅ Заказ готов")
         await message.edit(content="\n".join(lines), view=view)
     except:
         pass
 
 # ================= VIEWS =================
+
 class SkladView(View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -168,6 +172,7 @@ class SkladView(View):
 
         nickname = interaction.user.display_name
         new_text = f"{row.text}\n⏰ <t:{new_end}:R>\n🔄 Обновил: {nickname}"
+
         await interaction.message.edit(content=new_text, view=self)
 
         notify_channel_id = get_channel(interaction.guild.id, "sklad_notify")
@@ -252,25 +257,38 @@ class AktivView(View):
 async def setmpf(ctx, channel: Union[discord.TextChannel, discord.Thread]):
     if not has_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
-
     set_channel(ctx.guild.id, channel.id, "mpf")
-
-    if isinstance(channel, discord.Thread):
-        t = "ветка"
-    else:
-        t = "канал"
-
+    t = "ветка" if isinstance(channel, discord.Thread) else "канал"
     await ctx.respond(f"✅ MPF {t} установлен", ephemeral=True)
 
-
+# 🔥 ОБНОВЛЕННАЯ
 @bot.slash_command(name="setsimpletimer", guild_ids=[GUILD_ID])
-async def setsimpletimer(ctx, channel: discord.TextChannel):
+async def setsimpletimer(ctx, channel: Union[discord.TextChannel, discord.Thread, str]):
     if not has_access(ctx.author):
         return await ctx.respond("❌ Нет прав", ephemeral=True)
 
-    set_channel(ctx.guild.id, channel.id, "simple")
-    await ctx.respond("✅ таймер установлен", ephemeral=True)
+    target_channel = None
 
+    if isinstance(channel, str):
+        try:
+            ch_id = int(channel)
+            target_channel = bot.get_channel(ch_id)
+            if not target_channel:
+                try:
+                    target_channel = await bot.fetch_channel(ch_id)
+                except:
+                    pass
+        except:
+            return await ctx.respond("❌ Неверный ID", ephemeral=True)
+    else:
+        target_channel = channel
+
+    if not target_channel:
+        return await ctx.respond("❌ Канал или ветка не найдены", ephemeral=True)
+
+    set_channel(ctx.guild.id, target_channel.id, "simple")
+    t = "ветка" if isinstance(target_channel, discord.Thread) else "канал"
+    await ctx.respond(f"✅ таймер установлен в {t}", ephemeral=True)
 
 @bot.slash_command(name="setskladchannel", guild_ids=[GUILD_ID])
 async def setskladchannel(ctx, sklad_channel: discord.TextChannel, notify_channel: discord.TextChannel):
@@ -281,7 +299,6 @@ async def setskladchannel(ctx, sklad_channel: discord.TextChannel, notify_channe
     set_channel(ctx.guild.id, notify_channel.id, "sklad_notify")
     await ctx.respond("✅ каналы установлены", ephemeral=True)
 
-
 @bot.slash_command(name="setaktivchat", guild_ids=[GUILD_ID])
 async def setaktivchat(ctx, channel: discord.TextChannel):
     if not has_access(ctx.author):
@@ -290,8 +307,8 @@ async def setaktivchat(ctx, channel: discord.TextChannel):
     set_channel(ctx.guild.id, channel.id, "aktiv")
     await ctx.respond("✅ Актив чат установлен", ephemeral=True)
 
-
 # ===== АКТИВНОСТЬ =====
+
 @bot.slash_command(name="активность", guild_ids=[GUILD_ID])
 async def aktivnost(ctx, цель: str, гекс: str, регион: str, количество: int, voice: discord.VoiceChannel):
     if not has_aktiv_access(ctx.author):
@@ -311,8 +328,8 @@ async def aktivnost(ctx, цель: str, гекс: str, регион: str, кол
     await ctx.send(embed=embed, view=AktivView(ctx.author.id))
     await ctx.respond("✅ создано", ephemeral=True)
 
-
 # ===== ТАЙМЕР =====
+
 @bot.slash_command(name="таймер", guild_ids=[GUILD_ID])
 async def timer(ctx, название: str, дни: int = 0, часы: int = 0, минуты: int = 0):
     await ctx.defer(ephemeral=True)
@@ -344,8 +361,8 @@ async def timer(ctx, название: str, дни: int = 0, часы: int = 0, 
 
     await ctx.followup.send("✅ таймер создан", ephemeral=True)
 
-
 # ===== СКЛАД =====
+
 @bot.slash_command(name="склад", guild_ids=[GUILD_ID])
 async def sklad(ctx, гекс: str, регион: str, склад: str, пароль: str):
     await ctx.defer(ephemeral=True)
@@ -383,8 +400,8 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
 
     await ctx.followup.send("✅ склад создан", ephemeral=True)
 
-
 # ===== MPF =====
+
 @bot.slash_command(name="мпф", guild_ids=[GUILD_ID])
 async def mpf(ctx, что: str, ящиков: int, дни: int = 0, часы: int = 0, минуты: int = 0):
     await ctx.defer(ephemeral=True)
@@ -427,13 +444,12 @@ async def mpf(ctx, что: str, ящиков: int, дни: int = 0, часы: in
 
     await ctx.followup.send("✅ MPF создан", ephemeral=True)
 
-
 # ================= START =================
+
 @bot.event
 async def on_ready():
     print(f"Bot online {bot.user}")
     load_channels()
-
     bot.add_view(SkladView())
     bot.add_view(TimerView())
     bot.add_view(MPFView())
