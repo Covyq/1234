@@ -148,24 +148,17 @@ async def schedule_sklad_notifications(timer_row, channel):
 async def enable_mpf_button(message, view, delay):
     await asyncio.sleep(delay)
 
-    # включаем кнопку
     for item in view.children:
         if item.custom_id == "mpf_claim":
             item.disabled = False
 
     try:
         content = message.content
-
-        # удаляем строку таймера
         lines = content.split("\n")
         lines = [line for line in lines if not line.startswith("⏰")]
-
-        # добавляем статус
         lines.append("✅ Заказ готов")
 
-        new_content = "\n".join(lines)
-
-        await message.edit(content=new_content, view=view)
+        await message.edit(content="\n".join(lines), view=view)
     except:
         pass
 
@@ -402,15 +395,38 @@ async def sklad(ctx, гекс: str, регион: str, склад: str, паро
 
     await ctx.followup.send("✅ склад создан", ephemeral=True)
 
-# ===== MPF =====
+# ===== MPF (ОБНОВЛЕННЫЙ) =====
 
 @bot.slash_command(name="мпф", guild_ids=[GUILD_ID])
-async def mpf(ctx, что: str, ящиков: int, дни: int = 0, часы: int = 0, минуты: int = 0):
+async def mpf(
+    ctx,
+    что: str,
+    ящиков: int,
+    дни: int = 0,
+    часы: int = 0,
+    минуты: int = 0,
+    куда: str = "channel",
+    thread_id: str = None
+):
     await ctx.defer(ephemeral=True)
 
     channel_id = get_channel(ctx.guild.id, "mpf")
     if not channel_id or ctx.channel.id != channel_id:
         return await ctx.followup.send("❌ не тот канал", ephemeral=True)
+
+    target_channel = ctx.channel
+
+    if куда == "thread":
+        if not thread_id:
+            return await ctx.followup.send("❌ укажи ID ветки", ephemeral=True)
+
+        try:
+            thread = ctx.guild.get_thread(int(thread_id))
+            if not thread:
+                thread = await ctx.guild.fetch_channel(int(thread_id))
+            target_channel = thread
+        except:
+            return await ctx.followup.send("❌ не удалось найти ветку", ephemeral=True)
 
     total = дни*86400 + часы*3600 + минуты*60
 
@@ -425,13 +441,13 @@ async def mpf(ctx, что: str, ящиков: int, дни: int = 0, часы: in
     text = f"👤 {ctx.author.display_name}\n📦 {что}\n📦 Ящиков: {ящиков}{time_text}"
 
     view = MPFView(0, end_ts)
-    msg = await ctx.channel.send(text, view=view)
+    msg = await target_channel.send(text, view=view)
 
     view.message_id = msg.id
 
     Timer.create(
         guild_id=ctx.guild.id,
-        channel_id=ctx.channel.id,
+        channel_id=target_channel.id,
         message_id=msg.id,
         text=text,
         time_end=end_ts,
