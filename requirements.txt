@@ -1,5 +1,2 @@
-peewee
 py-cord
-pip install 
-discord.py 
-python-dotenv
+peewee
